@@ -155,7 +155,7 @@ router.post('/', async (req, res) => {
   fs.writeFileSync(path.join(STAGING_DIR, 'index.html'),
     buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles }));
   fs.writeFileSync(path.join(STAGING_DIR, 'manifest.json'),
-    JSON.stringify(buildManifest({ pkg, subdomain, domain }), null, 2));
+    JSON.stringify(buildManifest({ pkg, targetUrl, subdomain, domain }), null, 2));
   fs.writeFileSync(path.join(STAGING_DIR, 'sw.js'),
     buildServiceWorker({ targetUrl }));
 

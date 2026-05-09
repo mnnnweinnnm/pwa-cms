@@ -690,9 +690,10 @@ ${similarHtml}
     deferredPrompt = null;
   });
 
-  if (window.matchMedia('(display-mode: standalone)').matches) {
-    installBtn.textContent = '${lang.open}';
-    installBtn.onclick = function() { window.location.href = FALLBACK_URL; };
+  if (window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true) {
+    // PWA 已安裝，從桌面打開 → 直接跳轉目標網址
+    window.location.replace(FALLBACK_URL);
   }
 
   function handleInstall() {
@@ -720,8 +721,8 @@ ${similarHtml}
 </html>`;
 }
 
-function buildManifest({ pkg, subdomain, domain }) {
-  const startUrl = pkg.targetUrl || 'https://www.pera57.pro';
+function buildManifest({ pkg, targetUrl, subdomain, domain }) {
+  const startUrl = targetUrl || pkg.targetUrl || 'https://www.pera57.pro';
   return {
     name: pkg.appName || 'App',
     short_name: pkg.appName || 'App',
