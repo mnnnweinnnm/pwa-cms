@@ -13,13 +13,30 @@ const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { buildDownloadPage, buildManifest } = require('../templates/download-page');
 const { deployPage, removePage, verifyDeploy } = require('../services/deploy');
+const { requireAdmin } = require('../lib/auth-store');
 
 const DATA_FILE = path.join(__dirname, '../../data/campaigns.json');
 const DOMAINS_FILE = path.join(__dirname, '../../data/domains.json');
 
+function normalizeDomainRecords(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(item => typeof item === 'string'
+    ? { domain: item, status: 'active', notes: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+    : { status: 'pending', notes: '', ...item });
+}
+
+function loadDomainRecords() {
+  if (!fs.existsSync(DOMAINS_FILE)) return [{ domain: 'xmx99juego.online', status: 'active', notes: 'Default download domain', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }];
+  return normalizeDomainRecords(JSON.parse(fs.readFileSync(DOMAINS_FILE, 'utf8')));
+}
+
+function saveDomainRecords(records) {
+  fs.mkdirSync(path.dirname(DOMAINS_FILE), { recursive: true });
+  fs.writeFileSync(DOMAINS_FILE, JSON.stringify(records, null, 2));
+}
+
 function loadDomains() {
-  if (!fs.existsSync(DOMAINS_FILE)) return ['xmx99juego.online'];
-  return JSON.parse(fs.readFileSync(DOMAINS_FILE, 'utf8'));
+  return loadDomainRecords().filter(d => d.status === 'active').map(d => d.domain);
 }
 
 function loadCampaigns() {
@@ -44,18 +61,50 @@ router.get('/', (req, res) => {
 });
 
 router.get('/domains', (req, res) => {
-  res.json(loadDomains());
+  res.json({ domains: loadDomainRecords(), activeDomains: loadDomains() });
 });
 
-router.post('/domains', (req, res) => {
-  const { domain } = req.body;
+router.post('/domains', requireAdmin, (req, res) => {
+  const { domain, notes } = req.body;
   if (!domain) return res.status(400).json({ error: 'domain required' });
-  const domains = loadDomains();
-  if (!domains.includes(domain)) {
-    domains.push(domain);
-    fs.writeFileSync(DOMAINS_FILE, JSON.stringify(domains));
+  const normalized = String(domain).trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+  if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(normalized)) return res.status(400).json({ error: '域名格式不正確' });
+  const records = loadDomainRecords();
+  if (!records.some(d => d.domain === normalized)) {
+    records.push({
+      domain: normalized,
+      status: 'pending',
+      notes: notes || '待人工完成 GoDaddy → Cloudflare → wildcard DNS → Caddy 驗證',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: req.user?.username,
+    });
+    saveDomainRecords(records);
   }
-  res.json({ ok: true, domains });
+  res.json({ ok: true, domains: records, activeDomains: records.filter(d => d.status === 'active').map(d => d.domain) });
+});
+
+router.patch('/domains/:domain', requireAdmin, (req, res) => {
+  const records = loadDomainRecords();
+  const idx = records.findIndex(d => d.domain === req.params.domain);
+  if (idx === -1) return res.status(404).json({ error: 'Not found' });
+  if (req.body.status !== undefined) {
+    if (!['pending', 'active', 'disabled'].includes(req.body.status)) return res.status(400).json({ error: 'status must be pending/active/disabled' });
+    records[idx].status = req.body.status;
+  }
+  if (req.body.notes !== undefined) records[idx].notes = req.body.notes;
+  records[idx].updatedAt = new Date().toISOString();
+  records[idx].updatedBy = req.user?.username;
+  saveDomainRecords(records);
+  res.json({ ok: true, domain: records[idx], domains: records });
+});
+
+router.delete('/domains/:domain', requireAdmin, (req, res) => {
+  const records = loadDomainRecords();
+  const next = records.filter(d => d.domain !== req.params.domain);
+  if (next.length === records.length) return res.status(404).json({ error: 'Not found' });
+  saveDomainRecords(next);
+  res.json({ ok: true });
 });
 
 router.post('/', async (req, res) => {
@@ -65,6 +114,11 @@ router.post('/', async (req, res) => {
   }
   if (!/^[a-z0-9-]+$/.test(subdomain)) {
     return res.status(400).json({ error: 'subdomain 只能包含小寫字母、數字、連字符' });
+  }
+
+  const activeDomains = loadDomains();
+  if (!activeDomains.includes(domain)) {
+    return res.status(400).json({ error: '此域名尚未啟用，需管理員完成 DNS/Caddy 驗證後才能使用' });
   }
 
   const campaigns = loadCampaigns();
