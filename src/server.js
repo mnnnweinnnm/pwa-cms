@@ -34,7 +34,7 @@ app.use('/api/users', requireAuth, usersRouter);
 app.use('/api/push', pushRouter);  // subscribe/unsubscribe are public, stats/send/recall require auth
 app.use('/api/health', requireAuth, healthRouter);
 app.use('/api/stats', statsRouter);  // /event is public, / and /range require auth
-app.use('/api/audit', auditRouter);
+app.use('/api/audit', requireAuth, auditRouter);
 
 app.get('/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
