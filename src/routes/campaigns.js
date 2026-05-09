@@ -2,13 +2,14 @@
  * 推廣連結管理 API
  * GET    /api/campaigns           - 列出所有連結
  * POST   /api/campaigns          - 建立新連結（生成下載頁）
- * GET    /api/campaigns/:id       - 取得連結
- * DELETE /api/campaigns/:id       - 刪除連結
+ * GET    /api/campaigns/:id      - 取得連結
+ * DELETE /api/campaigns/:id      - 刪除連結
  * POST   /api/campaigns/:id/verify - 手動驗證 DNS 指向
  */
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const { execSync } = require('child_process');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { buildDownloadPage, buildManifest } = require('../templates/download-page');
@@ -18,6 +19,7 @@ const DATA_FILE = path.join(__dirname, '../../data/campaigns.json');
 
 // 可用域名清單（後台管理）
 const DOMAINS_FILE = path.join(__dirname, '../../data/domains.json');
+
 function loadDomains() {
   if (!fs.existsSync(DOMAINS_FILE)) return ['xmx99juego.online'];
   return JSON.parse(fs.readFileSync(DOMAINS_FILE, 'utf8'));
@@ -31,6 +33,46 @@ function loadCampaigns() {
 function saveCampaigns(campaigns) {
   fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
   fs.writeFileSync(DATA_FILE, JSON.stringify(campaigns, null, 2));
+}
+
+// 動態加 subdomain 到 Caddyfile + 推 GitHub
+function addCaddySubdomain(subdomain, domain) {
+  const CADDYFILE = '/etc/caddy/Caddyfile';
+  const GIT_DIR = '/root/vps-caddyfile';
+  const marker = `# PWA Download Subdomains`;
+
+  const newBlock = `${marker}\n${subdomain}.download.${domain} {
+    root * /var/www/pwa-downloads/${subdomain}
+    try_files {path} /index.html
+    file_server
+    encode gzip
+}
+`;
+
+  const existing = fs.readFileSync(CADDYFILE, 'utf8');
+  if (existing.includes(`${subdomain}.download.${domain}`)) {
+    console.log(`Caddy: ${subdomain}.download.${domain} already configured`);
+    return;
+  }
+
+  // 插入在 marker 行之前（保持乾淨順序）
+  const markerIndex = existing.indexOf(marker);
+  if (markerIndex > 0) {
+    const before = existing.slice(0, markerIndex);
+    fs.writeFileSync(CADDYFILE, before + newBlock + existing.slice(markerIndex));
+  } else {
+    fs.appendFileSync(CADDYFILE, '\n' + newBlock);
+  }
+
+  console.log(`Caddy: added ${subdomain}.download.${domain}`);
+
+  // Push to GitHub（觸發 sync）
+  try {
+    execSync('cd /root/vps-caddyfile && git add Caddyfile && git commit -m "Add PWA download subdomain: ' + subdomain + '.download.' + domain + '" && git push', { stdio: 'pipe' });
+    console.log('Caddy: pushed to GitHub');
+  } catch (e) {
+    console.log('Caddy: git push note:', e.message);
+  }
 }
 
 // GET list
@@ -65,33 +107,27 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'pkgId, targetUrl, subdomain, domain 皆為必填' });
   }
 
-  // 驗證 subdomain 格式
   if (!/^[a-z0-9-]+$/.test(subdomain)) {
     return res.status(400).json({ error: 'subdomain 只能包含小寫字母、數字、連字符' });
   }
 
-  // 檢查 subdomain 是否已被使用
   const campaigns = loadCampaigns();
   if (campaigns.find(c => c.subdomain === subdomain && c.domain === domain)) {
     return res.status(409).json({ error: '此子網域已被使用' });
   }
 
   // 取得 PWA 包
-  const pkgs = JSON.parse(fs.readFileSync(path.join(__dirname, '../../data/packages.json'), 'utf8').replace(/\[\]$/, '[]'));
+  const PKG_FILE = path.join(__dirname, '../../data/packages.json');
+  const pkgs = fs.existsSync(PKG_FILE) ? JSON.parse(fs.readFileSync(PKG_FILE, 'utf8')) : [];
   const pkg = pkgs.find(p => p.id === pkgId);
   if (!pkg) return res.status(404).json({ error: 'PWA 包不存在' });
 
-  // 建立本機資料夾
+  // 建立 staging 目錄
   const STAGING_DIR = path.join(__dirname, `../../staging/${subdomain}`);
   fs.mkdirSync(STAGING_DIR, { recursive: true });
 
   // 生成 HTML
-  const html = buildDownloadPage({
-    pkg,
-    targetUrl,
-    subdomain,
-    domain,
-  });
+  const html = buildDownloadPage({ pkg, targetUrl, subdomain, domain });
   fs.writeFileSync(path.join(STAGING_DIR, 'index.html'), html);
 
   // 生成 manifest.json
@@ -103,7 +139,7 @@ router.post('/', async (req, res) => {
     fs.copyFileSync(pkg.iconPath, path.join(STAGING_DIR, 'icon.png'));
   }
 
-  // 複製截圖（改名為 screenshot-1.jpg 等）
+  // 複製截圖
   if (pkg.screenshotPaths) {
     pkg.screenshotPaths.forEach((sp, i) => {
       if (fs.existsSync(sp)) {
@@ -113,14 +149,17 @@ router.post('/', async (req, res) => {
     });
   }
 
-  // 部署到 VPS1
   let deployed = false;
   let verified = false;
-  let downloadUrl = `https://${subdomain}.download.${domain}/`;
+  const downloadUrl = `https://${subdomain}.download.${domain}/`;
 
   try {
     await deployPage(subdomain, STAGING_DIR);
     deployed = true;
+    // 加 explicit subdomain 到 Caddyfile（申請 Let's Encrypt cert）
+    addCaddySubdomain(subdomain, domain);
+    // 等一下讓 Caddy reload
+    await new Promise(r => setTimeout(r, 5000));
     const result = await verifyDeploy(subdomain, domain);
     verified = result.ok;
   } catch (err) {
@@ -144,7 +183,7 @@ router.post('/', async (req, res) => {
   campaigns.push(campaign);
   saveCampaigns(campaigns);
 
-  res.status(201).json({ ...campaign, stagingDir: STAGING_DIR });
+  res.status(201).json(campaign);
 });
 
 // DELETE campaign
