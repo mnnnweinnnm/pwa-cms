@@ -120,7 +120,7 @@ app.get('/admin', requireAuth, (req, res) => {
           <div class="form-group"><label>評分</label><input name="rating" value="4.8" /></div>
         </div><div class="form-group"><label>App 說明（About this app）</label><textarea name="description" placeholder="Describe the app..."></textarea></div>
         <div class="form-group"><label>App Icon（PNG/JPG，建議 512x512）</label><input type="file" name="icon" accept="image/png,image/jpeg" /></div>
-        <div class="form-group"><label>截圖（可多選，建議 3-5 張）</label><input type="file" name="screenshots" accept="image/*" multiple /></div>
+        <div class="form-group"><label>截圖（可多選，建議 3-5 張，建議尺寸 1080x1920px 或 640x360px）</label><input type="file" name="screenshots" accept="image/*" multiple /></div>
         <button type="submit" class="btn btn-primary">建立 PWA 包</button></form><div id="pkg-msg"></div>
       </div>
       <div class="card"><div class="card-title">PWA 包列表</div><table class="table" id="pkg-table"><thead><tr><th>名稱</th><th>語系</th><th>版本</th><th>素材</th><th>操作</th></tr></thead><tbody></tbody></table></div>

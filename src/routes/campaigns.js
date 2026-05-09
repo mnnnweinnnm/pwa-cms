@@ -134,10 +134,12 @@ router.post('/', async (req, res) => {
   const STAGING_DIR = path.join(__dirname, `../../staging/${subdomain}`);
   fs.mkdirSync(STAGING_DIR, { recursive: true });
 
+const CMS_BASE_URL = process.env.CMS_BASE_URL || 'https://admin.pwaadminhub.xyz';
+
   fs.writeFileSync(path.join(STAGING_DIR, 'index.html'),
-    buildDownloadPage({ pkg, targetUrl, subdomain, domain }));
+    buildDownloadPage({ pkg, targetUrl, subdomain, domain, cmsBaseUrl: CMS_BASE_URL }));
   fs.writeFileSync(path.join(STAGING_DIR, 'manifest.json'),
-    JSON.stringify(buildManifest({ pkg, subdomain, domain }), null, 2));
+    JSON.stringify(buildManifest({ pkg, subdomain, domain, cmsBaseUrl: CMS_BASE_URL }), null, 2));
 
   if (pkg.iconPath && fs.existsSync(pkg.iconPath)) {
     fs.copyFileSync(pkg.iconPath, path.join(STAGING_DIR, 'icon.png'));
