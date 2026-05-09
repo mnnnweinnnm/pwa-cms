@@ -235,7 +235,7 @@ app.get('/admin', requireAuth, (req, res) => {
     const currentUser = ${currentUser};
     const isAdmin = currentUser.role === 'admin';
     document.getElementById('user-pill').textContent = currentUser.displayName + ' / ' + currentUser.role;
-    if (isAdmin) { document.getElementById('users-nav').style.display = ''; document.getElementById('push-nav').style.display = ''; document.getElementById('audit-nav').style.display = ''; }
+    if (isAdmin) { document.getElementById('users-nav').style.display = '\'; document.getElementById('push-nav').style.display = '\'; document.getElementById('audit-nav').style.display = '\'; }
 
     async function api(method, url, body) {
       const opts = { method, headers: {} };
@@ -247,37 +247,37 @@ app.get('/admin', requireAuth, (req, res) => {
       if (!r.ok) throw new Error(j.error || 'Request failed');
       return j;
     }
-    function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function esc(s) { return String(s ?? '\').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
     function msg(id, text, ok=true) { const el=document.getElementById(id); if(!el) return; el.className='msg '+(ok?'msg-success':'msg-error'); el.textContent=text; }
     async function logout(){ await api('POST','/api/auth/logout'); location.href='/login'; }
     function showTab(name, el) { document.querySelectorAll('.tab-content').forEach(x => x.style.display='none'); document.getElementById('tab-'+name).style.display='block'; document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('active')); if(el) el.classList.add('active'); if(name==='packages') loadPackages(); if(name==='campaigns'){loadCampaigns(); loadPkgOptions();} if(name==='domains') loadDomains(); if(name==='health') loadHealthStatus(); if(name==='users') loadUsers(); if(name==='push') loadPushStats(); if(name==='stats') loadStats(); if(name==='audit') loadAudit(); }
 
-    async function loadPackages(){ const pkgs=await api('GET','/api/packages'); document.querySelector('#pkg-table tbody').innerHTML=pkgs.map(p=>'<tr><td>'+esc(p.appName)+'</td><td><span class="badge badge-'+esc(p.lang)+'">'+esc(String(p.lang).toUpperCase())+'</span></td><td>v'+esc(p.version)+'</td><td>'+((p.screenshots||[]).length)+' 張截圖</td><td><button class="btn btn-muted btn-sm" onclick="openPkgEditModal('\'+p.id+'\')">編輯</button> <button class="btn btn-danger btn-sm" data-action="del-pkg" data-id="'+esc(p.id)+'">刪除</button></td></tr>').join(''); }
+    async function loadPackages(){ const pkgs=await api('GET','/api/packages'); document.querySelector('#pkg-table tbody').innerHTML=pkgs.map(p=>'<tr><td>'+esc(p.appName)+'</td><td><span class="badge badge-'+esc(p.lang)+'">'+esc(String(p.lang).toUpperCase())+'</span></td><td>v'+esc(p.version)+'</td><td>'+((p.screenshots||[]).length)+' 張截圖</td><td><button class="btn btn-muted btn-sm" onclick="openPkgEditModal('\'+p.id+'\')">編輯</button> <button class="btn btn-danger btn-sm" data-action="del-pkg" data-id="'+esc(p.id)+'">刪除</button></td></tr>').join('\'); }
     document.getElementById('pkg-form').onsubmit=async(e)=>{e.preventDefault();try{await api('POST','/api/packages',new FormData(e.target));msg('pkg-msg','✅ PWA 包建立成功');e.target.reset();loadPackages();}catch(err){msg('pkg-msg','❌ 建立失敗：'+err.message,false);}};
     async function delPkg(id){ if(!confirm('確認刪除？'))return; await api('DELETE','/api/packages/'+id); loadPackages(); }
 
-    async function loadCampaigns(){ const {campaigns}=await api('GET','/api/campaigns'); document.getElementById('camp-table-body').innerHTML=campaigns.map(c=>'<tr><td>'+esc(c.subdomain)+'</td><td>'+esc(c.pkgName)+'</td><td><span class="badge badge-'+esc(c.pkgLang)+'">'+esc(String(c.pkgLang).toUpperCase())+'</span></td><td>'+(c.downloadUrl?'<div class="link-box">'+esc(c.downloadUrl)+'</div>':'-')+'</td><td>'+(c.verified?'<span class="badge badge-verified">已驗證</span>':'<span class="badge badge-pending">待驗證</span>')+'</td><td><button class="btn btn-muted btn-sm" onclick="openCampEditModal('\'+esc(c.id)+'\')">編輯</button> <button class="btn btn-muted btn-sm" data-action="verify-camp" data-id="'+esc(c.id)+'">驗證</button> <button class="btn btn-danger btn-sm" data-action="del-camp" data-id="'+esc(c.id)+'">刪除</button></td></tr>').join(''); }
-    async function loadPkgOptions(){ const pkgs=await api('GET','/api/packages'); document.getElementById('camp-pkg-select').innerHTML='<option value="">-- 選擇包 --</option>'+pkgs.map(p=>'<option value="'+p.id+'">'+esc(p.appName)+' ('+esc(String(p.lang).toUpperCase())+')</option>').join(''); const {activeDomains}=await api('GET','/api/campaigns/domains'); document.getElementById('camp-domain-select').innerHTML='<option value="">-- 選擇域名 --</option>'+activeDomains.map(d=>'<option value="'+esc(d)+'">'+esc(d)+'</option>').join(''); }
+    async function loadCampaigns(){ const {campaigns}=await api('GET','/api/campaigns'); document.getElementById('camp-table-body').innerHTML=campaigns.map(c=>'<tr><td>'+esc(c.subdomain)+'</td><td>'+esc(c.pkgName)+'</td><td><span class="badge badge-'+esc(c.pkgLang)+'">'+esc(String(c.pkgLang).toUpperCase())+'</span></td><td>'+(c.downloadUrl?'<div class="link-box">'+esc(c.downloadUrl)+'</div>':'-')+'</td><td>'+(c.verified?'<span class="badge badge-verified">已驗證</span>':'<span class="badge badge-pending">待驗證</span>')+'</td><td><button class="btn btn-muted btn-sm" onclick="openCampEditModal('\'+esc(c.id)+'\')">編輯</button> <button class="btn btn-muted btn-sm" data-action="verify-camp" data-id="'+esc(c.id)+'">驗證</button> <button class="btn btn-danger btn-sm" data-action="del-camp" data-id="'+esc(c.id)+'">刪除</button></td></tr>').join('\'); }
+    async function loadPkgOptions(){ const pkgs=await api('GET','/api/packages'); document.getElementById('camp-pkg-select').innerHTML='<option value="">-- 選擇包 --</option>'+pkgs.map(p=>'<option value="'+p.id+'">'+esc(p.appName)+' ('+esc(String(p.lang).toUpperCase())+')</option>').join('\'); const {activeDomains}=await api('GET','/api/campaigns/domains'); document.getElementById('camp-domain-select').innerHTML='<option value="">-- 選擇域名 --</option>'+activeDomains.map(d=>'<option value="'+esc(d)+'">'+esc(d)+'</option>').join('\'); }
     document.getElementById('camp-form').onsubmit=async(e)=>{e.preventDefault();try{const r=await api('POST','/api/campaigns',Object.fromEntries(new FormData(e.target)));msg('camp-msg','✅ 建立成功！下載頁：'+r.downloadUrl);e.target.reset();loadCampaigns();}catch(err){msg('camp-msg','❌ 建立失敗：'+err.message,false);}};
     async function verifyCamp(id){ await api('POST','/api/campaigns/'+id+'/verify'); loadCampaigns(); }
     async function delCamp(id){ if(!confirm('確認刪除？會一併移除下載頁'))return; await api('DELETE','/api/campaigns/'+id); loadCampaigns(); }
 
-    async function loadDomains(){ const {domains,activeDomains}=await api('GET','/api/campaigns/domains'); document.getElementById('active-domain-list').innerHTML=activeDomains.map(d=>'<span class="domain-tag">'+esc(d)+'</span>').join('')||'<span class="hint">尚無已啟用域名</span>'; document.getElementById('domain-table-body').innerHTML=domains.map(d=>'<tr><td>'+esc(d.domain)+'</td><td><span class="badge badge-'+esc(d.status)+'">'+esc(d.status)+'</span></td><td>'+esc(d.notes||'')+'</td><td>'+(isAdmin?domainActions(d):'<span class="hint">僅管理員可修改</span>')+'</td></tr>').join(''); }
+    async function loadDomains(){ const {domains,activeDomains}=await api('GET','/api/campaigns/domains'); document.getElementById('active-domain-list').innerHTML=activeDomains.map(d=>'<span class="domain-tag">'+esc(d)+'</span>').join('\')||'<span class="hint">尚無已啟用域名</span>'; document.getElementById('domain-table-body').innerHTML=domains.map(d=>'<tr><td>'+esc(d.domain)+'</td><td><span class="badge badge-'+esc(d.status)+'">'+esc(d.status)+'</span></td><td>'+esc(d.notes||'\')+'</td><td>'+(isAdmin?domainActions(d):'<span class="hint">僅管理員可修改</span>')+'</td></tr>').join('\'); }
     function domainActions(d){ return '<button class="btn btn-muted btn-sm" data-action="domain-status" data-domain="'+esc(d.domain)+'" data-status="active">啟用</button> <button class="btn btn-muted btn-sm" data-action="domain-status" data-domain="'+esc(d.domain)+'" data-status="pending">待處理</button> <button class="btn btn-muted btn-sm" data-action="domain-status" data-domain="'+esc(d.domain)+'" data-status="disabled">停用</button> <button class="btn btn-danger btn-sm" data-action="del-domain" data-domain="'+esc(d.domain)+'">刪除</button>'; }
-    async function addDomain(){ const d=document.getElementById('new-domain').value.trim(); const notes=document.getElementById('new-domain-notes').value.trim(); if(!d)return; try{await api('POST','/api/campaigns/domains',{domain:d,notes});document.getElementById('new-domain').value='';document.getElementById('new-domain-notes').value='';msg('domain-msg','✅ 已建立待處理域名；需人工完成 DNS/Caddy 後再啟用');loadDomains();}catch(err){msg('domain-msg','❌ 新增失敗：'+err.message,false);} }
+    async function addDomain(){ const d=document.getElementById('new-domain').value.trim(); const notes=document.getElementById('new-domain-notes').value.trim(); if(!d)return; try{await api('POST','/api/campaigns/domains',{domain:d,notes});document.getElementById('new-domain').value='\';document.getElementById('new-domain-notes').value='\';msg('domain-msg','✅ 已建立待處理域名；需人工完成 DNS/Caddy 後再啟用');loadDomains();}catch(err){msg('domain-msg','❌ 新增失敗：'+err.message,false);} }
     async function setDomainStatus(domain,status){ await api('PATCH','/api/campaigns/domains/'+domain,{status}); loadDomains(); }
     async function delDomain(domain){ if(!confirm('確認刪除此域名紀錄？'))return; await api('DELETE','/api/campaigns/domains/'+domain); loadDomains(); }
 
-    async function loadUsers(){ if(!isAdmin)return; const users=await api('GET','/api/users'); document.getElementById('user-table-body').innerHTML=users.map(u=>'<tr><td>'+esc(u.username)+'</td><td>'+esc(u.displayName)+'</td><td>'+esc(u.role)+'</td><td>'+(u.active?'<span class="badge badge-active">active</span>':'<span class="badge badge-disabled">disabled</span>')+'</td><td><button class="btn btn-muted btn-sm" data-action="toggle-user" data-id="'+esc(u.id)+'" data-active="'+(!u.active)+'">'+(u.active?'停用':'啟用')+'</button> <button class="btn btn-danger btn-sm" data-action="del-user" data-id="'+esc(u.id)+'">刪除</button></td></tr>').join(''); }
+    async function loadUsers(){ if(!isAdmin)return; const users=await api('GET','/api/users'); document.getElementById('user-table-body').innerHTML=users.map(u=>'<tr><td>'+esc(u.username)+'</td><td>'+esc(u.displayName)+'</td><td>'+esc(u.role)+'</td><td>'+(u.active?'<span class="badge badge-active">active</span>':'<span class="badge badge-disabled">disabled</span>')+'</td><td><button class="btn btn-muted btn-sm" data-action="toggle-user" data-id="'+esc(u.id)+'" data-active="'+(!u.active)+'">'+(u.active?'停用':'啟用')+'</button> <button class="btn btn-danger btn-sm" data-action="del-user" data-id="'+esc(u.id)+'">刪除</button></td></tr>').join('\'); }
     document.getElementById('user-form').onsubmit=async(e)=>{e.preventDefault();try{await api('POST','/api/users',Object.fromEntries(new FormData(e.target)));msg('user-msg','✅ 使用者已建立');e.target.reset();loadUsers();}catch(err){msg('user-msg','❌ 建立失敗：'+err.message,false);}};
     async function toggleUser(id,active){ await api('PATCH','/api/users/'+id,{active}); loadUsers(); }
     async function delUser(id){ if(!confirm('確認刪除此使用者？'))return; await api('DELETE','/api/users/'+id); loadUsers(); }
 
 
     async function loadHealthStatus(){ try{ const data=await api('GET','/api/health/status'); renderHealthResults(data); }catch(err){ msg('health-msg','❌ '+err.message,false); } }
-    function renderHealthResults(data){ document.getElementById('health-last-check').textContent=data.lastCheckAt?'上次檢查：'+new Date(data.lastCheckAt).toLocaleString():'尚未檢查'; const results=data.results||{}; const urls=Object.keys(results); if(urls.length===0){ document.getElementById('health-table-body').innerHTML='<tr><td colspan="5" class="hint">尚無檢查結果</td></tr>'; return; } document.getElementById('health-table-body').innerHTML=urls.map(u=>{ const r=results[u]; const statusBadge=r.safe?'<span class="badge badge-active">✅ Safe</span>':(r.threats&&r.threats.length?'<span class="badge" style="background:#fed7d7;color:#c53030">🔴 Flagged</span>':'<span class="badge badge-pending">⚠️ Warning</span>'); const httpStr=r.httpStatus?(r.httpStatus<400?'<span style="color:#276749">'+r.httpStatus+'</span>':'<span style="color:#c53030">'+r.httpStatus+'</span>'):(r.httpError?'<span style="color:#c53030">Error</span>':'-'); const threats=r.threats&&r.threats.length?r.threats.map(t=>esc(t.type)).join(', '):'—'; const time=r.checkedAt?new Date(r.checkedAt).toLocaleString():'-'; return '<tr><td style="font-size:12px;word-break:break-all">'+esc(u)+'</td><td>'+statusBadge+'</td><td>'+httpStr+'</td><td style="font-size:12px">'+threats+'</td><td style="font-size:12px">'+time+'</td></tr>'; }).join(''); }
+    function renderHealthResults(data){ document.getElementById('health-last-check').textContent=data.lastCheckAt?'上次檢查：'+new Date(data.lastCheckAt).toLocaleString():'尚未檢查'; const results=data.results||{}; const urls=Object.keys(results); if(urls.length===0){ document.getElementById('health-table-body').innerHTML='<tr><td colspan="5" class="hint">尚無檢查結果</td></tr>'; return; } document.getElementById('health-table-body').innerHTML=urls.map(u=>{ const r=results[u]; const statusBadge=r.safe?'<span class="badge badge-active">✅ Safe</span>':(r.threats&&r.threats.length?'<span class="badge" style="background:#fed7d7;color:#c53030">🔴 Flagged</span>':'<span class="badge badge-pending">⚠️ Warning</span>'); const httpStr=r.httpStatus?(r.httpStatus<400?'<span style="color:#276749">'+r.httpStatus+'</span>':'<span style="color:#c53030">'+r.httpStatus+'</span>'):(r.httpError?'<span style="color:#c53030">Error</span>':'-'); const threats=r.threats&&r.threats.length?r.threats.map(t=>esc(t.type)).join(', '):'—'; const time=r.checkedAt?new Date(r.checkedAt).toLocaleString():'-'; return '<tr><td style="font-size:12px;word-break:break-all">'+esc(u)+'</td><td>'+statusBadge+'</td><td>'+httpStr+'</td><td style="font-size:12px">'+threats+'</td><td style="font-size:12px">'+time+'</td></tr>'; }).join('\'); }
     async function runCheckAll(){ const btn=document.getElementById('check-all-btn'); btn.disabled=true; btn.textContent='檢查中...'; try{ const data=await api('POST','/api/health/check-all'); renderHealthResults(data); msg('health-msg','✅ 檢查完成'); }catch(err){ msg('health-msg','❌ '+err.message,false); } btn.disabled=false; btn.textContent='🔍 檢查所有域名'; }
-    async function runSingleCheck(){ const url=document.getElementById('single-health-url').value.trim(); if(!url)return; try{ const r=await api('POST','/api/health/check',{url}); msg('single-health-msg',(r.safe?'✅ Safe':'🔴 Flagged: '+r.threats.map(t=>t.type).join(', '))+(r.httpStatus?' (HTTP '+r.httpStatus+')':'')); }catch(err){ msg('single-health-msg','❌ '+err.message,false); } }
+    async function runSingleCheck(){ const url=document.getElementById('single-health-url').value.trim(); if(!url)return; try{ const r=await api('POST','/api/health/check',{url}); msg('single-health-msg',(r.safe?'✅ Safe':'🔴 Flagged: '+r.threats.map(t=>t.type).join(', '))+(r.httpStatus?' (HTTP '+r.httpStatus+')':'\')); }catch(err){ msg('single-health-msg','❌ '+err.message,false); } }
 
     // Push notification functions
     async function loadPushStats(){
@@ -301,7 +301,7 @@ app.get('/admin', requireAuth, (req, res) => {
         document.getElementById('recall-stats').innerHTML = rhtml;
         try {
           const {campaigns} = await api('GET','/api/campaigns');
-          document.getElementById('push-camp-select').innerHTML = '<option value="">-- 全部訂閱者 --</option>' + campaigns.map(c => '<option value="'+esc(c.id)+'">'+esc(c.pkgName)+' ('+esc(c.subdomain)+'.'+esc(c.domain)+')</option>').join('');
+          document.getElementById('push-camp-select').innerHTML = '<option value="">-- 全部訂閱者 --</option>' + campaigns.map(c => '<option value="'+esc(c.id)+'">'+esc(c.pkgName)+' ('+esc(c.subdomain)+'.'+esc(c.domain)+')</option>').join('\');
         } catch(e) {}
       } catch(err) { document.getElementById('push-stats').innerHTML = '<span class="hint">無法載入: '+esc(err.message)+'</span>'; }
     }
@@ -351,11 +351,11 @@ app.get('/admin', requireAuth, (req, res) => {
         var s = r.summary;
         var types = ['page_view','install_click','install_complete','pwa_open','redirect','push_subscribe'];
         var labels = ['👁 瀏覽','☝️ 點安裝','✅ 安裝完成','📱 PWA開啟','➡️ 跳轉','🔔 推播訂閱'];
-        document.getElementById('stats-summary').innerHTML = types.map(function(t,i) { return '<div style="text-align:center"><div style="font-size:24px;font-weight:700">'+(s.byType[t]||0)+'</div><div class="hint">'+labels[i]+'</div></div>'; }).join('');
+        document.getElementById('stats-summary').innerHTML = types.map(function(t,i) { return '<div style="text-align:center"><div style="font-size:24px;font-weight:700">'+(s.byType[t]||0)+'</div><div class="hint">'+labels[i]+'</div></div>'; }).join('\');
         var days = Object.keys(s.byDay||{}).sort().reverse().slice(0, 14);
         if (days.length) {
-          var tbl = '<table class="table"><thead><tr><th>日期</th>' + types.map(function(t,i){return '<th>'+labels[i]+'</th>';}).join('') + '</tr></thead><tbody>';
-          days.forEach(function(d) { tbl += '<tr><td>'+d+'</td>' + types.map(function(t){return '<td>'+(s.byDay[d][t]||0)+'</td>';}).join('') + '</tr>'; });
+          var tbl = '<table class="table"><thead><tr><th>日期</th>' + types.map(function(t,i){return '<th>'+labels[i]+'</th>';}).join('\') + '</tr></thead><tbody>';
+          days.forEach(function(d) { tbl += '<tr><td>'+d+'</td>' + types.map(function(t){return '<td>'+(s.byDay[d][t]||0)+'</td>';}).join('\') + '</tr>'; });
           tbl += '</tbody></table>';
           document.getElementById('stats-daily').innerHTML = tbl;
         } else { document.getElementById('stats-daily').innerHTML = '<p class="hint">尚無數據</p>'; }
@@ -377,8 +377,8 @@ app.get('/admin', requireAuth, (req, res) => {
       try {
         var r = await api('GET', '/api/audit' + qs);
         document.getElementById('audit-table-body').innerHTML = r.entries.map(function(e) {
-          return '<tr><td style="font-size:12px;white-space:nowrap">'+new Date(e.timestamp).toLocaleString()+'</td><td>'+esc(e.user)+'</td><td><span class="badge">'+esc(e.action)+'</span></td><td style="font-size:12px">'+esc(e.target)+'</td><td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis">'+esc(JSON.stringify(e.detail||''))+'</td></tr>';
-        }).join('');
+          return '<tr><td style="font-size:12px;white-space:nowrap">'+new Date(e.timestamp).toLocaleString()+'</td><td>'+esc(e.user)+'</td><td><span class="badge">'+esc(e.action)+'</span></td><td style="font-size:12px">'+esc(e.target)+'</td><td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis">'+esc(JSON.stringify(e.detail||'\'))+'</td></tr>';
+        }).join('\');
       } catch(err) { document.getElementById('audit-table-body').innerHTML = '<tr><td colspan="5" class="hint">載入失敗</td></tr>'; }
     }
 
@@ -386,13 +386,13 @@ app.get('/admin', requireAuth, (req, res) => {
     async function openPkgEditModal(id) {
       var pkg = await api('GET', '/api/packages/' + id);
       document.getElementById('pkg-edit-id').value = pkg.id;
-      document.getElementById('pkg-edit-name').value = pkg.appName || '';
-      document.getElementById('pkg-edit-dev').value = pkg.developer || '';
-      document.getElementById('pkg-edit-ver').value = pkg.version || '';
+      document.getElementById('pkg-edit-name').value = pkg.appName || '\';
+      document.getElementById('pkg-edit-dev').value = pkg.developer || '\';
+      document.getElementById('pkg-edit-ver').value = pkg.version || '\';
       document.getElementById('pkg-edit-lang').value = pkg.lang || 'es';
-      document.getElementById('pkg-edit-dl').value = pkg.downloadCount || '';
-      document.getElementById('pkg-edit-rating').value = pkg.rating || '';
-      document.getElementById('pkg-edit-desc').value = pkg.description || '';
+      document.getElementById('pkg-edit-dl').value = pkg.downloadCount || '\';
+      document.getElementById('pkg-edit-rating').value = pkg.rating || '\';
+      document.getElementById('pkg-edit-desc').value = pkg.description || '\';
       document.getElementById('pkg-edit-modal').style.display = 'flex';
     }
     function closePkgModal() { document.getElementById('pkg-edit-modal').style.display = 'none'; }
@@ -412,12 +412,12 @@ app.get('/admin', requireAuth, (req, res) => {
     async function openCampEditModal(id) {
       var c = await api('GET', '/api/campaigns/' + id);
       document.getElementById('camp-edit-id').value = c.id;
-      document.getElementById('camp-edit-sub').value = c.subdomain || '';
-      document.getElementById('camp-edit-target').value = c.targetUrl || '';
+      document.getElementById('camp-edit-sub').value = c.subdomain || '\';
+      document.getElementById('camp-edit-target').value = c.targetUrl || '\';
       var pkgs = await api('GET', '/api/packages');
-      document.getElementById('camp-edit-pkg').innerHTML = pkgs.map(p => '<option value="'+p.id+'"'+(p.id===c.pkgId?' selected':'')+'>'+esc(p.appName)+' ('+String(p.lang).toUpperCase()+')</option>').join('');
+      document.getElementById('camp-edit-pkg').innerHTML = pkgs.map(p => '<option value="'+p.id+'"'+(p.id===c.pkgId?' selected':'\')+'>'+esc(p.appName)+' ('+String(p.lang).toUpperCase()+')</option>').join('\');
       var {activeDomains} = await api('GET', '/api/campaigns/domains');
-      document.getElementById('camp-edit-domain').innerHTML = activeDomains.map(d => '<option value="'+esc(d)+'"'+(d===c.domain?' selected':'')+'>'+esc(d)+'</option>').join('');
+      document.getElementById('camp-edit-domain').innerHTML = activeDomains.map(d => '<option value="'+esc(d)+'"'+(d===c.domain?' selected':'\')+'>'+esc(d)+'</option>').join('\');
       document.getElementById('camp-edit-modal').style.display = 'flex';
     }
     function closeCampModal() { document.getElementById('camp-edit-modal').style.display = 'none'; }
