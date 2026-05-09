@@ -3,7 +3,7 @@
  */
 const fs = require('fs');
 const path = require('path');
-const { Client } = require('ssh2-sftp-client');
+const Client = require('ssh2-sftp-client');
 
 const VPS1_HOST = '128.199.249.195';
 const VPS1_USER = 'root';
