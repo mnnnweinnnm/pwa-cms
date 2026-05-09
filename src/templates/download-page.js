@@ -381,9 +381,9 @@ function buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles 
       --surface: #ffffff;
       --primary-green: #01875f;
       --primary-green-dark: #017048;
-      --brand-primary: ${brand.primaryColor};
-      --brand-accent: ${brand.accentColor};
-      --brand-bg-gradient: ${brand.bgGradient};
+      --brand-primary: #01875f;
+      --brand-accent: #01875f;
+      --brand-bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       --text-primary: #202124;
       --text-secondary: #5f6368;
       --text-tertiary: #80868b;
