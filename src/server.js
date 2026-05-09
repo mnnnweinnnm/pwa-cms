@@ -252,11 +252,11 @@ app.get('/admin', requireAuth, (req, res) => {
     async function logout(){ await api('POST','/api/auth/logout'); location.href='/login'; }
     function showTab(name, el) { document.querySelectorAll('.tab-content').forEach(x => x.style.display='none'); document.getElementById('tab-'+name).style.display='block'; document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('active')); if(el) el.classList.add('active'); if(name==='packages') loadPackages(); if(name==='campaigns'){loadCampaigns(); loadPkgOptions();} if(name==='domains') loadDomains(); if(name==='health') loadHealthStatus(); if(name==='users') loadUsers(); if(name==='push') loadPushStats(); if(name==='stats') loadStats(); if(name==='audit') loadAudit(); }
 
-    async function loadPackages(){ const pkgs=await api('GET','/api/packages'); document.querySelector('#pkg-table tbody').innerHTML=pkgs.map(p=>'<tr><td>'+esc(p.appName)+'</td><td><span class="badge badge-'+esc(p.lang)+'">'+esc(String(p.lang).toUpperCase())+'</span></td><td>v'+esc(p.version)+'</td><td>'+((p.screenshots||[]).length)+' 張截圖</td><td><button class="btn btn-muted btn-sm" onclick="openPkgEditModal('+JSON.stringify(p).replace(/'/g,"\\'")+')">編輯</button> <button class="btn btn-danger btn-sm" data-action="del-pkg" data-id="'+esc(p.id)+'">刪除</button></td></tr>').join(''); }
+    async function loadPackages(){ const pkgs=await api('GET','/api/packages'); document.querySelector('#pkg-table tbody').innerHTML=pkgs.map(p=>'<tr><td>'+esc(p.appName)+'</td><td><span class="badge badge-'+esc(p.lang)+'">'+esc(String(p.lang).toUpperCase())+'</span></td><td>v'+esc(p.version)+'</td><td>'+((p.screenshots||[]).length)+' 張截圖</td><td><button class="btn btn-muted btn-sm" onclick="openPkgEditModal('\''+p.id+'\'')">編輯</button> <button class="btn btn-danger btn-sm" data-action="del-pkg" data-id="'+esc(p.id)+'">刪除</button></td></tr>').join(''); }
     document.getElementById('pkg-form').onsubmit=async(e)=>{e.preventDefault();try{await api('POST','/api/packages',new FormData(e.target));msg('pkg-msg','✅ PWA 包建立成功');e.target.reset();loadPackages();}catch(err){msg('pkg-msg','❌ 建立失敗：'+err.message,false);}};
     async function delPkg(id){ if(!confirm('確認刪除？'))return; await api('DELETE','/api/packages/'+id); loadPackages(); }
 
-    async function loadCampaigns(){ const {campaigns}=await api('GET','/api/campaigns'); document.getElementById('camp-table-body').innerHTML=campaigns.map(c=>'<tr><td>'+esc(c.subdomain)+'</td><td>'+esc(c.pkgName)+'</td><td><span class="badge badge-'+esc(c.pkgLang)+'">'+esc(String(c.pkgLang).toUpperCase())+'</span></td><td>'+(c.downloadUrl?'<div class="link-box">'+esc(c.downloadUrl)+'</div>':'-')+'</td><td>'+(c.verified?'<span class="badge badge-verified">已驗證</span>':'<span class="badge badge-pending">待驗證</span>')+'</td><td><button class="btn btn-muted btn-sm" onclick="openCampEditModal('+esc(c.id)+')">編輯</button> <button class="btn btn-muted btn-sm" data-action="verify-camp" data-id="'+esc(c.id)+'">驗證</button> <button class="btn btn-danger btn-sm" data-action="del-camp" data-id="'+esc(c.id)+'">刪除</button></td></tr>').join(''); }
+    async function loadCampaigns(){ const {campaigns}=await api('GET','/api/campaigns'); document.getElementById('camp-table-body').innerHTML=campaigns.map(c=>'<tr><td>'+esc(c.subdomain)+'</td><td>'+esc(c.pkgName)+'</td><td><span class="badge badge-'+esc(c.pkgLang)+'">'+esc(String(c.pkgLang).toUpperCase())+'</span></td><td>'+(c.downloadUrl?'<div class="link-box">'+esc(c.downloadUrl)+'</div>':'-')+'</td><td>'+(c.verified?'<span class="badge badge-verified">已驗證</span>':'<span class="badge badge-pending">待驗證</span>')+'</td><td><button class="btn btn-muted btn-sm" onclick="openCampEditModal('\''+esc(c.id)+'\'')">編輯</button> <button class="btn btn-muted btn-sm" data-action="verify-camp" data-id="'+esc(c.id)+'">驗證</button> <button class="btn btn-danger btn-sm" data-action="del-camp" data-id="'+esc(c.id)+'">刪除</button></td></tr>').join(''); }
     async function loadPkgOptions(){ const pkgs=await api('GET','/api/packages'); document.getElementById('camp-pkg-select').innerHTML='<option value="">-- 選擇包 --</option>'+pkgs.map(p=>'<option value="'+p.id+'">'+esc(p.appName)+' ('+esc(String(p.lang).toUpperCase())+')</option>').join(''); const {activeDomains}=await api('GET','/api/campaigns/domains'); document.getElementById('camp-domain-select').innerHTML='<option value="">-- 選擇域名 --</option>'+activeDomains.map(d=>'<option value="'+esc(d)+'">'+esc(d)+'</option>').join(''); }
     document.getElementById('camp-form').onsubmit=async(e)=>{e.preventDefault();try{const r=await api('POST','/api/campaigns',Object.fromEntries(new FormData(e.target)));msg('camp-msg','✅ 建立成功！下載頁：'+r.downloadUrl);e.target.reset();loadCampaigns();}catch(err){msg('camp-msg','❌ 建立失敗：'+err.message,false);}};
     async function verifyCamp(id){ await api('POST','/api/campaigns/'+id+'/verify'); loadCampaigns(); }
@@ -383,7 +383,8 @@ app.get('/admin', requireAuth, (req, res) => {
     }
 
     // === Package Edit Modal ===
-    function openPkgEditModal(pkg) {
+    async function openPkgEditModal(id) {
+      var pkg = await api('GET', '/api/packages/' + id);
       document.getElementById('pkg-edit-id').value = pkg.id;
       document.getElementById('pkg-edit-name').value = pkg.appName || '';
       document.getElementById('pkg-edit-dev').value = pkg.developer || '';
@@ -413,7 +414,6 @@ app.get('/admin', requireAuth, (req, res) => {
       document.getElementById('camp-edit-id').value = c.id;
       document.getElementById('camp-edit-sub').value = c.subdomain || '';
       document.getElementById('camp-edit-target').value = c.targetUrl || '';
-      // Load domains and packages into selects
       var pkgs = await api('GET', '/api/packages');
       document.getElementById('camp-edit-pkg').innerHTML = pkgs.map(p => '<option value="'+p.id+'"'+(p.id===c.pkgId?' selected':'')+'>'+esc(p.appName)+' ('+String(p.lang).toUpperCase()+')</option>').join('');
       var {activeDomains} = await api('GET', '/api/campaigns/domains');
@@ -470,11 +470,11 @@ app.get('/admin', requireAuth, (req, res) => {
         <form id="camp-edit-form" onsubmit="return submitCampEdit(event)">
           <input type="hidden" name="id" id="camp-edit-id">
           <div class="form-row">
-            <div class="form-group"><label>子網域</label><input type="text" name="subdomain" id="camp-edit-sub" required placeholder="mycampaign"></div>
+            <div class="form-group"><label>子網域</label><input type="text" name="subdomain" id="camp-edit-sub" required></div>
             <div class="form-group"><label>域名</label><select name="domain" id="camp-edit-domain" required></select></div>
           </div>
           <div class="form-group"><label>PWA 包</label><select name="pkgId" id="camp-edit-pkg" required></select></div>
-          <div class="form-group"><label>目標網址</label><input type="url" name="targetUrl" id="camp-edit-target" required placeholder="https://..."></div>
+          <div class="form-group"><label>目標網址</label><input type="url" name="targetUrl" id="camp-edit-target" required></div>
           <div class="modal-actions">
             <button type="button" class="btn btn-muted" onclick="closeCampModal()">取消</button>
             <button type="submit" class="btn">儲存</button>
