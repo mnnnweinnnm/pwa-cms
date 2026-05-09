@@ -256,7 +256,7 @@ app.get('/admin', requireAuth, (req, res) => {
     document.getElementById('pkg-form').onsubmit=async(e)=>{e.preventDefault();try{await api('POST','/api/packages',new FormData(e.target));msg('pkg-msg','✅ PWA 包建立成功');e.target.reset();loadPackages();}catch(err){msg('pkg-msg','❌ 建立失敗：'+err.message,false);}};
     async function delPkg(id){ if(!confirm('確認刪除？'))return; await api('DELETE','/api/packages/'+id); loadPackages(); }
 
-    async function loadCampaigns(){ const {campaigns}=await api('GET','/api/campaigns'); document.getElementById('camp-table-body').innerHTML=campaigns.map(c=>'<tr><td>'+esc(c.subdomain)+'</td><td>'+esc(c.pkgName)+'</td><td><span class="badge badge-'+esc(c.pkgLang)+'">'+esc(String(c.pkgLang).toUpperCase())+'</span></td><td>'+(c.downloadUrl?'<div class="link-box">'+esc(c.downloadUrl)+'</div>':'-')+'</td><td>'+(c.verified?'<span class="badge badge-verified">已驗證</span>':'<span class="badge badge-pending">待驗證</span>')+'</td><td><button class="btn btn-muted btn-sm" data-action="edit-camp" data-id="'+esc(c.id)+'">編輯</button> <button class="btn btn-muted btn-sm" data-action="verify-camp" data-id="'+esc(c.id)+'">驗證</button> <button class="btn btn-danger btn-sm" data-action="del-camp" data-id="'+esc(c.id)+'">刪除</button></td></tr>').join(''); }
+    async function loadCampaigns(){ const {campaigns}=await api('GET','/api/campaigns'); document.getElementById('camp-table-body').innerHTML=campaigns.map(c=>'<tr><td>'+esc(c.subdomain)+'</td><td>'+esc(c.pkgName)+'</td><td><span class="badge badge-'+esc(c.pkgLang)+'">'+esc(String(c.pkgLang).toUpperCase())+'</span></td><td>'+(c.downloadUrl?'<div class="link-box">'+esc(c.downloadUrl)+'</div>':'-')+'</td><td>'+(c.verified?'<span class="badge badge-verified">已驗證</span>':'<span class="badge badge-pending">待驗證</span>')+'</td><td><button class="btn btn-muted btn-sm" data-action="edit-camp" data-id="'+esc(c.id)+'">編輯</button> <button class="btn btn-muted btn-sm" data-action="redeploy-camp" data-id="'+esc(c.id)+'">重新部署</button> <button class="btn btn-muted btn-sm" data-action="verify-camp" data-id="'+esc(c.id)+'">驗證</button> <button class="btn btn-danger btn-sm" data-action="del-camp" data-id="'+esc(c.id)+'">刪除</button></td></tr>').join(''); }
     async function loadPkgOptions(){ const pkgs=await api('GET','/api/packages'); document.getElementById('camp-pkg-select').innerHTML='<option value="">-- 選擇包 --</option>'+pkgs.map(p=>'<option value="'+p.id+'">'+esc(p.appName)+' ('+esc(String(p.lang).toUpperCase())+')</option>').join(''); const {activeDomains}=await api('GET','/api/campaigns/domains'); document.getElementById('camp-domain-select').innerHTML='<option value="">-- 選擇域名 --</option>'+activeDomains.map(d=>'<option value="'+esc(d)+'">'+esc(d)+'</option>').join(''); }
     document.getElementById('camp-form').onsubmit=async(e)=>{e.preventDefault();try{const r=await api('POST','/api/campaigns',Object.fromEntries(new FormData(e.target)));msg('camp-msg','✅ 建立成功！下載頁：'+r.downloadUrl);e.target.reset();loadCampaigns();}catch(err){msg('camp-msg','❌ 建立失敗：'+err.message,false);}};
     async function verifyCamp(id){ await api('POST','/api/campaigns/'+id+'/verify'); loadCampaigns(); }
@@ -336,11 +336,22 @@ app.get('/admin', requireAuth, (req, res) => {
       if (action === 'del-pkg-ss') return delPkgScreenshot(btn.dataset.index);
       if (action === 'verify-camp') return verifyCamp(btn.dataset.id);
       if (action === 'del-camp') return delCamp(btn.dataset.id);
+      if (action === 'redeploy-camp') return redeployCamp(btn.dataset.id);
       if (action === 'domain-status') return setDomainStatus(btn.dataset.domain, btn.dataset.status);
       if (action === 'del-domain') return delDomain(btn.dataset.domain);
       if (action === 'toggle-user') return toggleUser(btn.dataset.id, btn.dataset.active === 'true');
       if (action === 'del-user') return delUser(btn.dataset.id);
     });
+
+    async function redeployCamp(id) {
+      if (!confirm('確認重新部署？會重新產生下載頁')) return;
+      try {
+        msg('camp-msg', '⏳ 部署中...');
+        var r = await api('POST', '/api/campaigns/' + id + '/redeploy');
+        msg('camp-msg', r.deployed ? '✅ 部署成功' + (r.verified ? '（已驗證）' : '（未驗證）') : '❌ 部署失敗');
+        loadCampaigns();
+      } catch(err) { msg('camp-msg', '❌ 部署失敗: ' + err.message, false); }
+    }
 
     // === Stats ===
     async function loadStats() {

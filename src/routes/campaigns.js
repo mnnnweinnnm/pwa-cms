@@ -51,6 +51,13 @@ function saveCampaigns(campaigns) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(campaigns, null, 2));
 }
 
+const PKG_FILE = path.join(__dirname, '../../data/packages.json');
+function loadPackages() {
+  if (!fs.existsSync(PKG_FILE)) return [];
+  return JSON.parse(fs.readFileSync(PKG_FILE, 'utf8'));
+}
+
+
 function buildDownloadUrl(subdomain, domain) {
   return `https://${subdomain}.${domain}/`;
 }
@@ -130,8 +137,7 @@ router.post('/', async (req, res) => {
     return res.status(409).json({ error: '此子網域已被使用' });
   }
 
-  const PKG_FILE = path.join(__dirname, '../../data/packages.json');
-  const pkgs = fs.existsSync(PKG_FILE) ? JSON.parse(fs.readFileSync(PKG_FILE, 'utf8')) : [];
+  const pkgs = loadPackages();
   const pkg = pkgs.find(p => p.id === pkgId);
   if (!pkg) return res.status(404).json({ error: 'PWA 包不存在' });
 
@@ -215,7 +221,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
     return res.status(409).json({ error: '此域名+子網域組合已存在' });
   }
   // Check pkg exists
-  const packages = loadPackagesData();
+  const packages = loadPackages();
   const pkg = packages.find(p => p.id === pkgId);
   if (!pkg) return res.status(400).json({ error: 'PWA 包不存在' });
   const old = campaigns[idx];
@@ -255,3 +261,60 @@ router.post('/:id/verify', async (req, res) => {
 });
 
 module.exports = router;
+
+// POST redeploy campaign (regenerate download page with latest template)
+router.post('/:id/redeploy', requireAdmin, async (req, res) => {
+  const campaigns = loadCampaigns();
+  const idx = campaigns.findIndex(c => c.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Not found' });
+
+  const camp = campaigns[idx];
+  const pkgs = loadPackages();
+  const pkg = pkgs.find(p => p.id === camp.pkgId);
+  if (!pkg) return res.status(404).json({ error: 'PWA 包不存在' });
+
+  const STAGING_DIR = path.join(__dirname, `../../staging/${camp.subdomain}`);
+  fs.mkdirSync(STAGING_DIR, { recursive: true });
+
+  if (pkg.iconPath && fs.existsSync(pkg.iconPath)) {
+    fs.copyFileSync(pkg.iconPath, path.join(STAGING_DIR, 'icon.png'));
+  }
+  const screenshotFiles = [];
+  if (pkg.screenshotPaths) {
+    pkg.screenshotPaths.forEach((sp, i) => {
+      if (fs.existsSync(sp)) {
+        const fname = `screenshot-${i + 1}${path.extname(sp)}`;
+        fs.copyFileSync(sp, path.join(STAGING_DIR, fname));
+        screenshotFiles.push(fname);
+      }
+    });
+  }
+
+  const cmsBaseUrl = process.env.CMS_BASE_URL || 'https://admin.pwaadminhub.xyz';
+  const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || '';
+  fs.writeFileSync(path.join(STAGING_DIR, 'index.html'),
+    buildDownloadPage({ pkg, targetUrl: camp.targetUrl, subdomain: camp.subdomain, domain: camp.domain, screenshotFiles, cmsBaseUrl, vapidPublicKey, campaignId: camp.id }));
+  fs.writeFileSync(path.join(STAGING_DIR, 'safe.html'),
+    buildSafePage({ pkg }));
+  fs.writeFileSync(path.join(STAGING_DIR, 'manifest.json'),
+    JSON.stringify(buildManifest({ pkg, targetUrl: camp.targetUrl, subdomain: camp.subdomain, domain: camp.domain }), null, 2));
+  fs.writeFileSync(path.join(STAGING_DIR, 'sw.js'),
+    buildServiceWorker({ targetUrl: camp.targetUrl }));
+
+  let deployed = false;
+  let verified = false;
+  try {
+    await deployPage(camp.subdomain, STAGING_DIR);
+    deployed = true;
+    await new Promise(r => setTimeout(r, 6000));
+    const result = await verifyDeploy(camp.subdomain, camp.domain);
+    verified = result.ok;
+  } catch (err) {
+    console.error('Redeploy error:', err.message);
+  }
+
+  campaigns[idx] = { ...camp, deployed, verified, redeployedAt: new Date().toISOString() };
+  saveCampaigns(campaigns);
+  audit.log('campaign.redeploy', { user: req.user?.username, target: camp.id, detail: { subdomain: camp.subdomain, deployed, verified }, ip: req.ip });
+  res.json(campaigns[idx]);
+});
