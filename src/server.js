@@ -327,8 +327,10 @@ app.get('/admin', requireAuth, (req, res) => {
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
       const action = btn.dataset.action;
-      if (action === 'edit-pkg') return editPkg(btn.dataset.id);
-      if (action === 'edit-camp') return editCamp(btn.dataset.id);
+      if (action === 'edit-pkg') return openPkgEditModal(btn.dataset.id);
+      if (action === 'edit-camp') return openCampEditModal(btn.dataset.id);
+      if (action === 'close-pkg-modal') return closePkgModal();
+      if (action === 'close-camp-modal') return closeCampModal();
       if (action === 'del-pkg') return delPkg(btn.dataset.id);
       if (action === 'verify-camp') return verifyCamp(btn.dataset.id);
       if (action === 'del-camp') return delCamp(btn.dataset.id);
@@ -384,35 +386,123 @@ app.get('/admin', requireAuth, (req, res) => {
     }
 
     // === Package Edit ===
-    async function editPkg(id) {
+    async function openPkgEditModal(id) {
       try {
         var pkg = await api('GET', '/api/packages/' + id);
-        var newName = prompt('應用名稱', pkg.appName);
-        if (newName === null) return;
-        var newDev = prompt('開發者', pkg.developer || '');
-        var newVer = prompt('版本', pkg.version || '1.0.0');
-        var newDesc = prompt('說明', pkg.description || '');
-        var newLang = prompt('語系 (es/en/bn)', pkg.lang || 'es');
-        var newDl = prompt('下載量', pkg.downloadCount || '10,000+');
-        var newRating = prompt('評分', pkg.rating || '4.8');
-        var fd = new FormData();
-        fd.append('appName', newName || pkg.appName);
-        fd.append('developer', newDev || pkg.developer || '');
-        fd.append('version', newVer || pkg.version || '1.0.0');
-        fd.append('description', newDesc || pkg.description || '');
-        fd.append('lang', newLang || pkg.lang || 'es');
-        fd.append('downloadCount', newDl || pkg.downloadCount || '10,000+');
-        fd.append('rating', newRating || pkg.rating || '4.8');
+        document.getElementById('pkg-edit-id').value = pkg.id;
+        document.getElementById('pkg-edit-name').value = pkg.appName || '';
+        document.getElementById('pkg-edit-dev').value = pkg.developer || '';
+        document.getElementById('pkg-edit-ver').value = pkg.version || '';
+        document.getElementById('pkg-edit-lang').value = pkg.lang || 'es';
+        document.getElementById('pkg-edit-dl').value = pkg.downloadCount || '';
+        document.getElementById('pkg-edit-rating').value = pkg.rating || '';
+        document.getElementById('pkg-edit-desc').value = pkg.description || '';
+        document.getElementById('pkg-edit-modal').style.display = 'flex';
+      } catch(err) { msg('pkg-msg', '❌ 載入失敗: ' + err.message, false); }
+    }
+    function closePkgModal() { document.getElementById('pkg-edit-modal').style.display = 'none'; }
+    document.getElementById('pkg-edit-form').onsubmit = async function(e) {
+      e.preventDefault();
+      var id = document.getElementById('pkg-edit-id').value;
+      var fd = new FormData(e.target);
+      try {
         await fetch('/api/packages/' + id, { method: 'PUT', body: fd });
-        msg('pkg-msg', '✅ 包已更新');
+        closePkgModal();
+        msg('pkg-msg', '✅ PWA 包已更新');
         loadPackages();
       } catch(err) { msg('pkg-msg', '❌ 更新失敗: ' + err.message, false); }
+    };
+
+    async function openCampEditModal(id) {
+      try {
+        var c = await api('GET', '/api/campaigns/' + id);
+        document.getElementById('camp-edit-id').value = c.id;
+        document.getElementById('camp-edit-sub').value = c.subdomain || '';
+        document.getElementById('camp-edit-target').value = c.targetUrl || '';
+        var pkgs = await api('GET', '/api/packages');
+        var opts = '';
+        for (var i = 0; i < pkgs.length; i++) {
+          var sel = pkgs[i].id === c.pkgId ? ' selected' : '';
+          opts += '<option value="' + esc(pkgs[i].id) + '"' + sel + '>' + esc(pkgs[i].appName) + ' (' + String(pkgs[i].lang).toUpperCase() + ')</option>';
+        }
+        document.getElementById('camp-edit-pkg').innerHTML = opts;
+        var dd = await api('GET', '/api/campaigns/domains');
+        var dopts = '';
+        for (var j = 0; j < dd.activeDomains.length; j++) {
+          var dsel = dd.activeDomains[j] === c.domain ? ' selected' : '';
+          dopts += '<option value="' + esc(dd.activeDomains[j]) + '"' + dsel + '>' + esc(dd.activeDomains[j]) + '</option>';
+        }
+        document.getElementById('camp-edit-domain').innerHTML = dopts;
+        document.getElementById('camp-edit-modal').style.display = 'flex';
+      } catch(err) { msg('camp-msg', '❌ 載入失敗: ' + err.message, false); }
     }
+    function closeCampModal() { document.getElementById('camp-edit-modal').style.display = 'none'; }
+    document.getElementById('camp-edit-form').onsubmit = async function(e) {
+      e.preventDefault();
+      var id = document.getElementById('camp-edit-id').value;
+      var data = { subdomain: document.getElementById('camp-edit-sub').value, domain: document.getElementById('camp-edit-domain').value, targetUrl: document.getElementById('camp-edit-target').value, pkgId: document.getElementById('camp-edit-pkg').value };
+      try {
+        await api('PUT', '/api/campaigns/' + id, data);
+        closeCampModal();
+        msg('camp-msg', '✅ 推廣連結已更新');
+        loadCampaigns();
+      } catch(err) { msg('camp-msg', '❌ 更新失敗: ' + err.message, false); }
+    };
 
     loadPackages();
     if(location.hash==='#health') showTab('health',document.querySelector('[data-tab="health"]'));
     if(location.hash==='#stats') showTab('stats',document.querySelector('[data-tab="stats"]'));
   </script>
+
+  <div id="pkg-edit-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center">
+    <div style="background:#1e1e2e;border-radius:12px;padding:24px;width:480px;max-width:90vw;max-height:90vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="margin:0;color:#cdd6f4">📦 編輯 PWA 包</h3>
+        <button data-action="close-pkg-modal" style="background:none;border:none;color:#cdd6f4;font-size:20px;cursor:pointer">&times;</button>
+      </div>
+      <form id="pkg-edit-form">
+        <input type="hidden" name="id" id="pkg-edit-id">
+        <div style="margin-bottom:12px"><label style="color:#a6adc8;display:block;margin-bottom:4px">應用名稱</label><input type="text" name="appName" id="pkg-edit-name" required style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></div>
+        <div style="display:flex;gap:12px;margin-bottom:12px">
+          <div style="flex:1"><label style="color:#a6adc8;display:block;margin-bottom:4px">開發者</label><input type="text" name="developer" id="pkg-edit-dev" style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></div>
+          <div style="flex:1"><label style="color:#a6adc8;display:block;margin-bottom:4px">版本</label><input type="text" name="version" id="pkg-edit-ver" style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></div>
+        </div>
+        <div style="display:flex;gap:12px;margin-bottom:12px">
+          <div style="flex:1"><label style="color:#a6adc8;display:block;margin-bottom:4px">語系</label><select name="lang" id="pkg-edit-lang" style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"><option value="es">ES 西班牙</option><option value="en">EN 英語</option><option value="bn">BN 孟加拉</option></select></div>
+          <div style="flex:1"><label style="color:#a6adc8;display:block;margin-bottom:4px">下載量</label><input type="text" name="downloadCount" id="pkg-edit-dl" style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></div>
+          <div style="flex:1"><label style="color:#a6adc8;display:block;margin-bottom:4px">評分</label><input type="text" name="rating" id="pkg-edit-rating" style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></div>
+        </div>
+        <div style="margin-bottom:16px"><label style="color:#a6adc8;display:block;margin-bottom:4px">說明</label><textarea name="description" id="pkg-edit-desc" rows="2" style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></textarea></div>
+        <div style="display:flex;gap:12px;justify-content:flex-end">
+          <button type="button" data-action="close-pkg-modal" style="padding:8px 16px;background:#45475a;border:none;border-radius:6px;color:#cdd6f4;cursor:pointer">取消</button>
+          <button type="submit" style="padding:8px 16px;background:#89b4fa;border:none;border-radius:6px;color:#1e1e2e;cursor:pointer;font-weight:600">儲存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="camp-edit-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center">
+    <div style="background:#1e1e2e;border-radius:12px;padding:24px;width:480px;max-width:90vw;max-height:90vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="margin:0;color:#cdd6f4">🔗 編輯推廣連結</h3>
+        <button data-action="close-camp-modal" style="background:none;border:none;color:#cdd6f4;font-size:20px;cursor:pointer">&times;</button>
+      </div>
+      <form id="camp-edit-form">
+        <input type="hidden" name="id" id="camp-edit-id">
+        <div style="display:flex;gap:12px;margin-bottom:12px">
+          <div style="flex:1"><label style="color:#a6adc8;display:block;margin-bottom:4px">子網域</label><input type="text" name="subdomain" id="camp-edit-sub" required style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></div>
+          <div style="flex:1"><label style="color:#a6adc8;display:block;margin-bottom:4px">域名</label><select name="domain" id="camp-edit-domain" required style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></select></div>
+        </div>
+        <div style="margin-bottom:12px"><label style="color:#a6adc8;display:block;margin-bottom:4px">PWA 包</label><select name="pkgId" id="camp-edit-pkg" required style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></select></div>
+        <div style="margin-bottom:16px"><label style="color:#a6adc8;display:block;margin-bottom:4px">目標網址</label><input type="url" name="targetUrl" id="camp-edit-target" required style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></div>
+        <div style="display:flex;gap:12px;justify-content:flex-end">
+          <button type="button" data-action="close-camp-modal" style="padding:8px 16px;background:#45475a;border:none;border-radius:6px;color:#cdd6f4;cursor:pointer">取消</button>
+          <button type="submit" style="padding:8px 16px;background:#89b4fa;border:none;border-radius:6px;color:#1e1e2e;cursor:pointer;font-weight:600">儲存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
 </body>
 </html>`);
 });
@@ -420,16 +510,4 @@ app.get('/admin', requireAuth, (req, res) => {
 app.listen(PORT, () => {
   console.log(`🎯 PWA CMS running on port ${PORT}`);
 });
-    async function editCamp(id) {
-      try {
-        var c = await api('GET', '/api/campaigns/' + id);
-        var newSub = prompt('子網域', c.subdomain);
-        if (newSub === null) return;
-        var newTarget = prompt('目標網址', c.targetUrl || '');
-        var data = { subdomain: newSub || c.subdomain, targetUrl: newTarget || c.targetUrl };
-        await api('PUT', '/api/campaigns/' + id, data);
-        msg('camp-msg', '✅ 推廣連結已更新');
-        loadCampaigns();
-      } catch(err) { msg('camp-msg', '❌ 更新失敗: ' + err.message, false); }
-    }
 
