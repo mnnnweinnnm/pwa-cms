@@ -3,6 +3,7 @@
  * GET    /api/campaigns           - 列出所有連結
  * POST   /api/campaigns          - 建立新連結（生成下載頁）
  * GET    /api/campaigns/:id      - 取得連結
+ * PUT    /api/campaigns/:id      - 更新連結
  * DELETE /api/campaigns/:id      - 刪除連結
  * POST   /api/campaigns/:id/verify - 手動驗證 DNS 指向
  */
@@ -186,6 +187,50 @@ router.post('/', async (req, res) => {
   saveCampaigns(campaigns);
   audit.log('campaign.create', { user: req.user?.username, target: campaign.id, detail: { subdomain, domain, pkgName: pkg.appName, targetUrl, deployed, verified }, ip: req.ip });
   res.status(201).json(campaign);
+});
+
+// GET single campaign
+router.get('/:id', async (req, res) => {
+  const campaigns = loadCampaignsData();
+  const c = campaigns.find(c => c.id === req.params.id);
+  if (!c) return res.status(404).json({ error: 'Not found' });
+  res.json(c);
+});
+
+// PUT update campaign
+router.put('/:id', requireAdmin, async (req, res) => {
+  const campaigns = loadCampaignsData();
+  const idx = campaigns.findIndex(c => c.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Not found' });
+  const { subdomain, domain, targetUrl, pkgId } = req.body;
+  if (!subdomain || !domain || !targetUrl) {
+    return res.status(400).json({ error: 'subdomain, domain, targetUrl 必填' });
+  }
+  // Check domain exists and is active
+  const domains = loadDomainsData();
+  const dom = domains.find(d => d.domain === domain && d.status === 'active');
+  if (!dom) return res.status(400).json({ error: '域名不存在或未啟用' });
+  // Check duplicate subdomain+domain (excluding self)
+  if (campaigns.some(c => c.id !== req.params.id && c.subdomain === subdomain && c.domain === domain)) {
+    return res.status(409).json({ error: '此域名+子網域組合已存在' });
+  }
+  // Check pkg exists
+  const packages = loadPackagesData();
+  const pkg = packages.find(p => p.id === pkgId);
+  if (!pkg) return res.status(400).json({ error: 'PWA 包不存在' });
+  const old = campaigns[idx];
+  campaigns[idx] = {
+    ...old,
+    subdomain, domain, targetUrl, pkgId,
+    pkgName: pkg.appName,
+    pkgLang: pkg.lang,
+    deployed: old.deployed && (old.subdomain !== subdomain || old.domain !== domain || old.targetUrl !== targetUrl) ? false : old.deployed,
+    verified: old.verified && (old.subdomain === subdomain && old.domain === domain) ? old.verified : false,
+    updatedAt: new Date().toISOString()
+  };
+  saveCampaignsData(campaigns);
+  auditLog(req.user.username, 'update', 'campaign', campaigns[idx].subdomain + '.' + campaigns[idx].domain, { before: old, after: campaigns[idx] });
+  res.json(campaigns[idx]);
 });
 
 router.delete('/:id', async (req, res) => {

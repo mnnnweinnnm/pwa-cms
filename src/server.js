@@ -252,11 +252,11 @@ app.get('/admin', requireAuth, (req, res) => {
     async function logout(){ await api('POST','/api/auth/logout'); location.href='/login'; }
     function showTab(name, el) { document.querySelectorAll('.tab-content').forEach(x => x.style.display='none'); document.getElementById('tab-'+name).style.display='block'; document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('active')); if(el) el.classList.add('active'); if(name==='packages') loadPackages(); if(name==='campaigns'){loadCampaigns(); loadPkgOptions();} if(name==='domains') loadDomains(); if(name==='health') loadHealthStatus(); if(name==='users') loadUsers(); if(name==='push') loadPushStats(); if(name==='stats') loadStats(); if(name==='audit') loadAudit(); }
 
-    async function loadPackages(){ const pkgs=await api('GET','/api/packages'); document.querySelector('#pkg-table tbody').innerHTML=pkgs.map(p=>'<tr><td>'+esc(p.appName)+'</td><td><span class="badge badge-'+esc(p.lang)+'">'+esc(String(p.lang).toUpperCase())+'</span></td><td>v'+esc(p.version)+'</td><td>'+((p.screenshots||[]).length)+' 張截圖</td><td><button class="btn btn-muted btn-sm" data-action="edit-pkg" data-id="'+esc(p.id)+'">編輯</button> <button class="btn btn-danger btn-sm" data-action="del-pkg" data-id="'+esc(p.id)+'">刪除</button></td></tr>').join(''); }
+    async function loadPackages(){ const pkgs=await api('GET','/api/packages'); document.querySelector('#pkg-table tbody').innerHTML=pkgs.map(p=>'<tr><td>'+esc(p.appName)+'</td><td><span class="badge badge-'+esc(p.lang)+'">'+esc(String(p.lang).toUpperCase())+'</span></td><td>v'+esc(p.version)+'</td><td>'+((p.screenshots||[]).length)+' 張截圖</td><td><button class="btn btn-muted btn-sm" onclick="openPkgEditModal('+JSON.stringify(p).replace(/'/g,"\\'")+')">編輯</button> <button class="btn btn-danger btn-sm" data-action="del-pkg" data-id="'+esc(p.id)+'">刪除</button></td></tr>').join(''); }
     document.getElementById('pkg-form').onsubmit=async(e)=>{e.preventDefault();try{await api('POST','/api/packages',new FormData(e.target));msg('pkg-msg','✅ PWA 包建立成功');e.target.reset();loadPackages();}catch(err){msg('pkg-msg','❌ 建立失敗：'+err.message,false);}};
     async function delPkg(id){ if(!confirm('確認刪除？'))return; await api('DELETE','/api/packages/'+id); loadPackages(); }
 
-    async function loadCampaigns(){ const {campaigns}=await api('GET','/api/campaigns'); document.getElementById('camp-table-body').innerHTML=campaigns.map(c=>'<tr><td>'+esc(c.subdomain)+'</td><td>'+esc(c.pkgName)+'</td><td><span class="badge badge-'+esc(c.pkgLang)+'">'+esc(String(c.pkgLang).toUpperCase())+'</span></td><td>'+(c.downloadUrl?'<div class="link-box">'+esc(c.downloadUrl)+'</div>':'-')+'</td><td>'+(c.verified?'<span class="badge badge-verified">已驗證</span>':'<span class="badge badge-pending">待驗證</span>')+'</td><td><button class="btn btn-muted btn-sm" data-action="verify-camp" data-id="'+esc(c.id)+'">驗證</button> <button class="btn btn-danger btn-sm" data-action="del-camp" data-id="'+esc(c.id)+'">刪除</button></td></tr>').join(''); }
+    async function loadCampaigns(){ const {campaigns}=await api('GET','/api/campaigns'); document.getElementById('camp-table-body').innerHTML=campaigns.map(c=>'<tr><td>'+esc(c.subdomain)+'</td><td>'+esc(c.pkgName)+'</td><td><span class="badge badge-'+esc(c.pkgLang)+'">'+esc(String(c.pkgLang).toUpperCase())+'</span></td><td>'+(c.downloadUrl?'<div class="link-box">'+esc(c.downloadUrl)+'</div>':'-')+'</td><td>'+(c.verified?'<span class="badge badge-verified">已驗證</span>':'<span class="badge badge-pending">待驗證</span>')+'</td><td><button class="btn btn-muted btn-sm" onclick="openCampEditModal('+esc(c.id)+')">編輯</button> <button class="btn btn-muted btn-sm" data-action="verify-camp" data-id="'+esc(c.id)+'">驗證</button> <button class="btn btn-danger btn-sm" data-action="del-camp" data-id="'+esc(c.id)+'">刪除</button></td></tr>').join(''); }
     async function loadPkgOptions(){ const pkgs=await api('GET','/api/packages'); document.getElementById('camp-pkg-select').innerHTML='<option value="">-- 選擇包 --</option>'+pkgs.map(p=>'<option value="'+p.id+'">'+esc(p.appName)+' ('+esc(String(p.lang).toUpperCase())+')</option>').join(''); const {activeDomains}=await api('GET','/api/campaigns/domains'); document.getElementById('camp-domain-select').innerHTML='<option value="">-- 選擇域名 --</option>'+activeDomains.map(d=>'<option value="'+esc(d)+'">'+esc(d)+'</option>').join(''); }
     document.getElementById('camp-form').onsubmit=async(e)=>{e.preventDefault();try{const r=await api('POST','/api/campaigns',Object.fromEntries(new FormData(e.target)));msg('camp-msg','✅ 建立成功！下載頁：'+r.downloadUrl);e.target.reset();loadCampaigns();}catch(err){msg('camp-msg','❌ 建立失敗：'+err.message,false);}};
     async function verifyCamp(id){ await api('POST','/api/campaigns/'+id+'/verify'); loadCampaigns(); }
@@ -382,31 +382,106 @@ app.get('/admin', requireAuth, (req, res) => {
       } catch(err) { document.getElementById('audit-table-body').innerHTML = '<tr><td colspan="5" class="hint">載入失敗</td></tr>'; }
     }
 
-    // === Package Edit ===
-    async function editPkg(id) {
+    // === Package Edit Modal ===
+    function openPkgEditModal(pkg) {
+      document.getElementById('pkg-edit-id').value = pkg.id;
+      document.getElementById('pkg-edit-name').value = pkg.appName || '';
+      document.getElementById('pkg-edit-dev').value = pkg.developer || '';
+      document.getElementById('pkg-edit-ver').value = pkg.version || '';
+      document.getElementById('pkg-edit-lang').value = pkg.lang || 'es';
+      document.getElementById('pkg-edit-dl').value = pkg.downloadCount || '';
+      document.getElementById('pkg-edit-rating').value = pkg.rating || '';
+      document.getElementById('pkg-edit-desc').value = pkg.description || '';
+      document.getElementById('pkg-edit-modal').style.display = 'flex';
+    }
+    function closePkgModal() { document.getElementById('pkg-edit-modal').style.display = 'none'; }
+    async function submitPkgEdit(e) {
+      e.preventDefault();
+      var id = document.getElementById('pkg-edit-id').value;
+      var fd = new FormData(document.getElementById('pkg-edit-form'));
       try {
-        var pkg = await api('GET', '/api/packages/' + id);
-        var newName = prompt('應用名稱', pkg.appName);
-        if (newName === null) return;
-        var newDev = prompt('開發者', pkg.developer || '');
-        var newVer = prompt('版本', pkg.version || '1.0.0');
-        var newDesc = prompt('說明', pkg.description || '');
-        var newLang = prompt('語系 (es/en/bn)', pkg.lang || 'es');
-        var newDl = prompt('下載量', pkg.downloadCount || '10,000+');
-        var newRating = prompt('評分', pkg.rating || '4.8');
-        var fd = new FormData();
-        fd.append('appName', newName || pkg.appName);
-        fd.append('developer', newDev || pkg.developer || '');
-        fd.append('version', newVer || pkg.version || '1.0.0');
-        fd.append('description', newDesc || pkg.description || '');
-        fd.append('lang', newLang || pkg.lang || 'es');
-        fd.append('downloadCount', newDl || pkg.downloadCount || '10,000+');
-        fd.append('rating', newRating || pkg.rating || '4.8');
         await fetch('/api/packages/' + id, { method: 'PUT', body: fd });
-        msg('pkg-msg', '✅ 包已更新');
+        closePkgModal();
+        msg('pkg-msg', '✅ PWA 包已更新');
         loadPackages();
       } catch(err) { msg('pkg-msg', '❌ 更新失敗: ' + err.message, false); }
     }
+
+    // === Campaign Edit Modal ===
+    async function openCampEditModal(id) {
+      var c = await api('GET', '/api/campaigns/' + id);
+      document.getElementById('camp-edit-id').value = c.id;
+      document.getElementById('camp-edit-sub').value = c.subdomain || '';
+      document.getElementById('camp-edit-target').value = c.targetUrl || '';
+      // Load domains and packages into selects
+      var pkgs = await api('GET', '/api/packages');
+      document.getElementById('camp-edit-pkg').innerHTML = pkgs.map(p => '<option value="'+p.id+'"'+(p.id===c.pkgId?' selected':'')+'>'+esc(p.appName)+' ('+String(p.lang).toUpperCase()+')</option>').join('');
+      var {activeDomains} = await api('GET', '/api/campaigns/domains');
+      document.getElementById('camp-edit-domain').innerHTML = activeDomains.map(d => '<option value="'+esc(d)+'"'+(d===c.domain?' selected':'')+'>'+esc(d)+'</option>').join('');
+      document.getElementById('camp-edit-modal').style.display = 'flex';
+    }
+    function closeCampModal() { document.getElementById('camp-edit-modal').style.display = 'none'; }
+    async function submitCampEdit(e) {
+      e.preventDefault();
+      var id = document.getElementById('camp-edit-id').value;
+      var data = { subdomain: document.getElementById('camp-edit-sub').value, domain: document.getElementById('camp-edit-domain').value, targetUrl: document.getElementById('camp-edit-target').value, pkgId: document.getElementById('camp-edit-pkg').value };
+      try {
+        await api('PUT', '/api/campaigns/' + id, data);
+        closeCampModal();
+        msg('camp-msg', '✅ 推廣連結已更新');
+        loadCampaigns();
+      } catch(err) { msg('camp-msg', '❌ 更新失敗: ' + err.message, false); }
+    }
+
+
+    <div id="pkg-edit-modal" class="modal" style="display:none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>📦 編輯 PWA 包</h3>
+          <button class="modal-close" onclick="closePkgModal()">&times;</button>
+        </div>
+        <form id="pkg-edit-form" onsubmit="return submitPkgEdit(event)">
+          <input type="hidden" name="id" id="pkg-edit-id">
+          <div class="form-group"><label>應用名稱</label><input type="text" name="appName" id="pkg-edit-name" required></div>
+          <div class="form-row">
+            <div class="form-group"><label>開發者</label><input type="text" name="developer" id="pkg-edit-dev"></div>
+            <div class="form-group"><label>版本</label><input type="text" name="version" id="pkg-edit-ver"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>語系</label><select name="lang" id="pkg-edit-lang"><option value="es">ES 西班牙</option><option value="en">EN 英語</option><option value="bn">BN 孟加拉</option></select></div>
+            <div class="form-group"><label>下載量</label><input type="text" name="downloadCount" id="pkg-edit-dl"></div>
+            <div class="form-group"><label>評分</label><input type="text" name="rating" id="pkg-edit-rating"></div>
+          </div>
+          <div class="form-group"><label>說明</label><textarea name="description" id="pkg-edit-desc" rows="2"></textarea></div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-muted" onclick="closePkgModal()">取消</button>
+            <button type="submit" class="btn">儲存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="camp-edit-modal" class="modal" style="display:none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>🔗 編輯推廣連結</h3>
+          <button class="modal-close" onclick="closeCampModal()">&times;</button>
+        </div>
+        <form id="camp-edit-form" onsubmit="return submitCampEdit(event)">
+          <input type="hidden" name="id" id="camp-edit-id">
+          <div class="form-row">
+            <div class="form-group"><label>子網域</label><input type="text" name="subdomain" id="camp-edit-sub" required placeholder="mycampaign"></div>
+            <div class="form-group"><label>域名</label><select name="domain" id="camp-edit-domain" required></select></div>
+          </div>
+          <div class="form-group"><label>PWA 包</label><select name="pkgId" id="camp-edit-pkg" required></select></div>
+          <div class="form-group"><label>目標網址</label><input type="url" name="targetUrl" id="camp-edit-target" required placeholder="https://..."></div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-muted" onclick="closeCampModal()">取消</button>
+            <button type="submit" class="btn">儲存</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
     loadPackages();
     if(location.hash==='#health') showTab('health',document.querySelector('[data-tab="health"]'));
