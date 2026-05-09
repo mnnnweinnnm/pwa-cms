@@ -8,146 +8,6 @@
  * 品牌系統 — 每個品牌有自己的一組 reviews、similar apps、tags、配色
  * 模板合併時：brandData + langData（langData 優先）
  */
-const BRANDS = {
-  xmx99: {
-    name: 'XMX99',
-    primaryColor: '#e53935',   // 紅色
-    accentColor: '#ffca28',    // 金色
-    bgGradient: 'linear-gradient(135deg, #b71c1c 0%, #e53935 50%, #c62828 100%)',
-    themeColor: '#e53935',
-    tags: ['Casino', 'Juegos de mesa', 'N.º 1 Top de toros'],
-    country: '🇲🇽 México',
-    reviews: {
-      es: [
-        { initials: 'RC', name: 'Roberto Cervantes', color: '#01875f', stars: 5, date: '3 mayo 2026', text: 'Me encanta la variedad de juegos. Los gráficos son increíbles y se carga muy rápido. ¡La mejor app de entretenimiento que he probado este año!', helpful: 187 },
-        { initials: 'ML', name: 'María López G.', color: '#e91e63', stars: 5, date: '28 abril 2026', text: 'Las recompensas diarias son geniales. Llevo una semana jugando y ya gané bastante. Muy adictiva y divertida, súper recomendada.', helpful: 94 },
-        { initials: 'JR', name: 'Jorge Ramírez', color: '#1565c0', stars: 4, date: '22 abril 2026', text: 'Buena app en general. Me gustaría que agregaran más métodos de pago, pero el juego es muy bueno y las gráficas son top.', helpful: 52 },
-      ],
-      en: [
-        { initials: 'JM', name: 'James Miller', color: '#2e7d32', stars: 5, date: 'May 5, 2026', text: 'Best entertainment app I\'ve found! The graphics are amazing and it loads so fast. Definitely the top app of the year for me.', helpful: 203 },
-        { initials: 'SL', name: 'Sarah Lee', color: '#7b1fa2', stars: 5, date: 'Apr 30, 2026', text: 'Daily rewards are great! I\'ve been playing for a week and already won quite a bit. Super addictive and fun.', helpful: 112 },
-        { initials: 'DK', name: 'David Kim', color: '#c62828', stars: 4, date: 'Apr 25, 2026', text: 'Great app overall. Would love more payment methods. The games are excellent and graphics are top-tier.', helpful: 67 },
-      ],
-      bn: [
-        { initials: 'AR', name: 'Ashraful Rahman', color: '#00695c', stars: 5, date: '৫ মে, ২০২৬', text: 'অসাধারণ অ্যাপ! গ্রাফিক্স দারুণ এবং খুব দ্রুত লোড হয়। এটা সত্যিই সেরা বিনোদন অ্যাপ।', helpful: 89 },
-        { initials: 'FK', name: 'Fatima Khatun', color: '#ad1457', stars: 5, date: '২৮ এপ্রিল, ২০২৬', text: 'প্রতিদিনের পুরস্কার দারুণ! খুবই আসক্তিকর এবং মজাদার। সবাইকে সুপারিশ করছি।', helpful: 45 },
-        { initials: 'TH', name: 'Tanvir Hasan', color: '#1565c0', stars: 4, date: '২২ এপ্রিল, ২০২৬', text: 'সামগ্রিকভাবে ভালো অ্যাপ। আরও পেমেন্ট পদ্ধতি থাকলে ভালো হতো।', helpful: 31 },
-      ],
-    },
-    similarApps: {
-      es: [
-        { name: 'Fortuna Max: Casino', rating: '4,3' },
-        { name: 'Jackpot Pro Slots', rating: '4,8' },
-        { name: 'Gana Hoy', rating: '4,5' },
-        { name: 'Mega Win Casino', rating: '4,2' },
-      ],
-      en: [
-        { name: 'Lucky Star Casino', rating: '4,6' },
-        { name: 'Gold Rush Slots', rating: '4,7' },
-        { name: 'Win Big Today', rating: '4,4' },
-        { name: 'Super Jackpot Club', rating: '4,3' },
-      ],
-      bn: [
-        { name: 'Fortune Tiger BD', rating: '4,5' },
-        { name: 'Lucky 777 Slots', rating: '4,8' },
-        { name: 'Win BD Today', rating: '4,3' },
-        { name: 'Mega Win BD', rating: '4,1' },
-      ],
-    },
-  },
-  barya: {
-    name: 'Barya Online',
-    primaryColor: '#6a1b9a',   // 深紫
-    accentColor: '#ce93d8',      // 淺紫
-    bgGradient: 'linear-gradient(135deg, #4a148c 0%, #6a1b9a 50%, #8e24aa 100%)',
-    themeColor: '#6a1b9a',
-    tags: ['Online Casino', 'Slots', 'Live Casino'],
-    country: '🌏 Asia',
-    reviews: {
-      es: [
-        { initials: 'CT', name: 'Carlos Torres', color: '#1565c0', stars: 5, date: '2 mayo 2026', text: 'La mejor app de casino online que he probado. Variedad de juegos excelente y pagos rápidos.', helpful: 156 },
-        { initials: 'LP', name: 'Laura Pérez', color: '#c62828', stars: 5, date: '26 abril 2026', text: 'Excelente experiencia. Los juegos en vivo son increíbles y el soporte es muy atento.', helpful: 88 },
-        { initials: 'MH', name: 'Miguel Hernández', color: '#2e7d32', stars: 4, date: '20 abril 2026', text: 'Muy buena app. Hay muchas opciones de juego. Los retiros podrían ser más rápidos.', helpful: 63 },
-      ],
-      en: [
-        { initials: 'AJ', name: 'Alex Johnson', color: '#00695c', stars: 5, date: 'May 4, 2026', text: 'Best online casino app I\'ve used! Great game variety and fast payouts. Highly recommended.', helpful: 178 },
-        { initials: 'MW', name: 'Maria Wong', color: '#ad1457', stars: 5, date: 'Apr 28, 2026', text: 'Excellent experience. Live dealer games are amazing and customer support is very responsive.', helpful: 94 },
-        { initials: 'RK', name: 'Raj Kumar', color: '#1565c0', stars: 4, date: 'Apr 22, 2026', text: 'Very good app overall. Lots of game options. Withdrawals could be faster.', helpful: 57 },
-      ],
-      bn: [
-        { initials: 'ZH', name: 'Zahir Hossain', color: '#00695c', stars: 5, date: '৪ মে, ২০২৬', text: 'সেরা অনলাইন ক্যাসিনো অ্যাপ! গেমের বৈচিত্র্য দারুণ এবং পেআউট দ্রুত।', helpful: 76 },
-        { initials: 'NK', name: 'Nusrat Jahan', color: '#ad1457', stars: 5, date: '২৮ এপ্রিল, ২০২৬', text: 'অসাধারণ অভিজ্ঞতা। লাইভ ডিলার গেম অসাধারণ। সাপোর্ট খুবই সাড়াদায়ক।', helpful: 42 },
-        { initials: 'BH', name: 'Badrul Islam', color: '#1565c0', stars: 4, date: '২১ এপ্রিল, ২০২৬', text: 'মোটামুটি ভালো অ্যাপ। আরও গেম অপশন আছে।', helpful: 28 },
-      ],
-    },
-    similarApps: {
-      es: [
-        { name: 'Royal Casino PH', rating: '4,7' },
-        { name: 'Phil Win Online', rating: '4,5' },
-        { name: 'Lucky Pinas', rating: '4,3' },
-        { name: 'Mega Payout Slots', rating: '4,6' },
-      ],
-      en: [
-        { name: 'Royal PH Casino', rating: '4,7' },
-        { name: 'Lucky Pinas Online', rating: '4,5' },
-        { name: 'Phil Jackpot Pro', rating: '4,3' },
-        { name: 'Mega Win PH', rating: '4,6' },
-      ],
-      bn: [
-        { name: 'Royal BD Casino', rating: '4,6' },
-        { name: 'Lucky 777 BD', rating: '4,4' },
-        { name: 'Win BD Pro', rating: '4,2' },
-        { name: 'Mega Payout BD', rating: '4,5' },
-      ],
-    },
-  },
-  shadowbet: {
-    name: 'Shadow Bet',
-    primaryColor: '#1a237e',   // 深藍
-    accentColor: '#00e5ff',     // 青色
-    bgGradient: 'linear-gradient(135deg, #0d1b2a 0%, #1a237e 50%, #283593 100%)',
-    themeColor: '#1a237e',
-    tags: ['Sports Betting', 'Live Events', 'Best Odds'],
-    country: '🌏 Asia Pacific',
-    reviews: {
-      es: [
-        { initials: 'PG', name: 'Pedro García', color: '#1565c0', stars: 5, date: '1 mayo 2026', text: 'Las mejores cuotas del mercado. Apuesto todos los días y siempre tengo buenas ganancias.', helpful: 201 },
-        { initials: 'AV', name: 'Ana Vargas', color: '#c62828', stars: 5, date: '25 abril 2026', text: 'Variedad de deportes increíbles. Puedo apostar en vivo sin problemas. La app es súper fluida.', helpful: 132 },
-        { initials: 'RS', name: 'Roberto Silva', color: '#2e7d32', stars: 4, date: '19 abril 2026', text: 'Muy buena plataforma de apuestas. Me encanta la cobertura de eventos deportivos.', helpful: 78 },
-      ],
-      en: [
-        { initials: 'TW', name: 'Tom Williams', color: '#1565c0', stars: 5, date: 'May 3, 2026', text: 'Best odds in the market! I bet every day and always get great returns. The live betting is flawless.', helpful: 245 },
-        { initials: 'SC', name: 'Sophie Chen', color: '#c62828', stars: 5, date: 'Apr 27, 2026', text: 'Incredible sports variety. Live betting works perfectly. App is super smooth.', helpful: 167 },
-        { initials: 'JM', name: 'John Martinez', color: '#2e7d32', stars: 4, date: 'Apr 21, 2026', text: 'Great betting platform. Love the coverage of sporting events worldwide.', helpful: 89 },
-      ],
-      bn: [
-        { initials: 'RH', name: 'Rashid Ahmed', color: '#1565c0', stars: 5, date: '৩ মে, ২০২৬', text: 'বাজারে সেরা অডস! প্রতিদিন বেট করি এবং সবসময় ভালো রিটার্ন পাই।', helpful: 112 },
-        { initials: 'FK', name: 'Farida Khan', color: '#c62828', stars: 5, date: '২৭ এপ্রিল, ২০২৬', text: 'অসাধারণ স্পোর্টস বৈচিত্র্য। লাইভ বেটিং দারুণ কাজ করে। অ্যাপ খুবই স্মুথ।', helpful: 67 },
-        { initials: 'AH', name: 'Arif Hassan', color: '#2e7d32', stars: 4, date: '২০ এপ্রিল, ২০২৬', text: 'চমৎকার বেটিং প্ল্যাটফর্ম। বিশ্বব্যাপী স্পোর্টস কভারেজ পছন্দ করি।', helpful: 44 },
-      ],
-    },
-    similarApps: {
-      es: [
-        { name: 'Bet365 España', rating: '4,8' },
-        { name: 'Codere Apuestas', rating: '4,5' },
-        { name: 'Betfair ES', rating: '4,6' },
-        { name: 'Sportium', rating: '4,3' },
-      ],
-      en: [
-        { name: 'Bet365 Global', rating: '4,9' },
-        { name: 'Betfair International', rating: '4,7' },
-        { name: 'DraftKings Sports', rating: '4,6' },
-        { name: 'FanDuel Sportsbook', rating: '4,5' },
-      ],
-      bn: [
-        { name: 'Bet365 Asia', rating: '4,8' },
-        { name: 'Betfair BD', rating: '4,6' },
-        { name: 'JeetWin BD', rating: '4,4' },
-        { name: 'Baji Live BD', rating: '4,3' },
-      ],
-    },
-  },
-};
 
 const LANGS = {
   es: {
@@ -190,8 +50,18 @@ const LANGS = {
     iosAddHome: '«Añadir a pantalla de inicio»',
     country: '🇲🇽 México',
     finalDisclaimer: 'Final winnings are not guaranteed.',
-    reviewers: null,
-    similarAppsData: null,
+    tags: ['Casino', 'Juegos de mesa', 'N.º 1 Top de torneos'],
+    reviewers: [
+      { initials: 'RC', name: 'Roberto Cervantes', color: '#01875f', stars: 5, date: '3 mayo 2026', text: 'Me encanta la variedad de juegos. Los gráficos son increíbles y se carga muy rápido. ¡La mejor app de entretenimiento que he probado este año!', helpful: 187 },
+      { initials: 'ML', name: 'María López G.', color: '#e91e63', stars: 5, date: '28 abril 2026', text: 'Las recompensas diarias son geniales. Llevo una semana jugando y ya gané bastante. Muy adictiva y divertida, súper recomendada.', helpful: 94 },
+      { initials: 'JR', name: 'Jorge Ramírez', color: '#1565c0', stars: 4, date: '22 abril 2026', text: 'Buena app en general. Me gustaría que agregaran más métodos de pago, pero el juego es muy bueno y las gráficas son top.', helpful: 52 },
+    ],
+    similarAppsData: [
+      { name: 'Fortuna Max: Casino', rating: '4,3' },
+      { name: 'Jackpot Pro Slots', rating: '4,8' },
+      { name: 'Gana Hoy', rating: '4,5' },
+      { name: 'Mega Win Casino', rating: '4,2' },
+    ],
     versionPrefix: 'Versión',
     changelogSuffix: '- Nuevos juegos exclusivos añadidos al catálogo, rendimiento mejorado, tiempos de carga más rápidos y corrección de errores menores.',
   },
@@ -236,6 +106,18 @@ const LANGS = {
     country: '🌐 Global',
     finalDisclaimer: 'Final winnings are not guaranteed.',
     versionPrefix: 'Version',
+    tags: ['Casino', 'Card Games', 'Top Grossing #1'],
+    reviewers: [
+      { initials: 'RC', name: 'Roberto C.', color: '#01875f', stars: 5, date: 'May 3, 2026', text: 'Love the variety of games. Graphics are amazing and loads super fast. Best entertainment app I\'ve tried this year!', helpful: 187 },
+      { initials: 'ML', name: 'María L.', color: '#e91e63', stars: 5, date: 'Apr 28, 2026', text: 'Daily rewards are great. Been playing for a week and already won a lot. Very addictive and fun, highly recommended.', helpful: 94 },
+      { initials: 'JR', name: 'Jorge R.', color: '#1565c0', stars: 4, date: 'Apr 22, 2026', text: 'Good app overall. Wish they had more payment methods, but gameplay is great and graphics are top notch.', helpful: 52 },
+    ],
+    similarAppsData: [
+      { name: 'Fortuna Max: Casino', rating: '4.3' },
+      { name: 'Jackpot Pro Slots', rating: '4.8' },
+      { name: 'Win Today', rating: '4.5' },
+      { name: 'Mega Win Casino', rating: '4.2' },
+    ],
     changelogSuffix: '- New exclusive games added, improved performance, faster load times and minor bug fixes.',
   },
   bn: {
@@ -278,6 +160,18 @@ const LANGS = {
     iosAddHome: '"হোম স্ক্রিনে যোগ করুন"',
     country: '🇧🇩 বাংলাদেশ',
     finalDisclaimer: 'চূড়ান্ত জয়ের নিশ্চয়তা নেই।',
+    tags: ['ক্যাসিনো', 'কার্ড গেমস', 'শীর্ষ #১'],
+    reviewers: [
+      { initials: 'RC', name: 'Roberto C.', color: '#01875f', stars: 5, date: '৩ মে ২০২৬', text: 'অসাধারণ গেমের বৈচিত্র্য। গ্রাফিক্স দুর্দান্ত এবং খুব দ্রুত লোড হয়!', helpful: 187 },
+      { initials: 'ML', name: 'María L.', color: '#e91e63', stars: 5, date: '২৮ এপ্রিল ২০২৬', text: 'দৈনিক পুরস্কার দুর্দান্ত। অত্যন্ত আসক্তিকর এবং মজাদার।', helpful: 94 },
+      { initials: 'JR', name: 'Jorge R.', color: '#1565c0', stars: 4, date: '২২ এপ্রিল ২০২৬', text: 'সামগ্রিকভাবে ভালো অ্যাপ। আরও পেমেন্ট পদ্ধতি যোগ করলে ভালো হতো।', helpful: 52 },
+    ],
+    similarAppsData: [
+      { name: 'Fortuna Max: Casino', rating: '৪.৩' },
+      { name: 'Jackpot Pro Slots', rating: '৪.৮' },
+      { name: 'Gana Hoy', rating: '৪.৫' },
+      { name: 'Mega Win Casino', rating: '৪.২' },
+    ],
     versionPrefix: 'সংস্করণ',
     changelogSuffix: '- নতুন এক্সক্লুসিভ গেম, উন্নত পারফরম্যান্স এবং ছোটখাটো বাগ ফিক্স।',
   },
@@ -401,7 +295,6 @@ function buildSafePage({ pkg }) {
 
 function buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles = [], cmsBaseUrl, vapidPublicKey, campaignId }) {
   const lang = LANGS[pkg.lang] || LANGS.es;
-  const brand = BRANDS[pkg.brand] || BRANDS.xmx99;
   const appName = escapeHtml(pkg.appName || 'App');
   const version = escapeHtml(pkg.version || '1.0.0');
   const releaseDate = escapeHtml(pkg.releaseDate || new Date().toLocaleDateString());
@@ -418,8 +311,7 @@ function buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles 
   ).join('\n');
 
   // Reviews HTML
-  const brandReviewers = (brand.reviews && brand.reviews[langCode]) || brand.reviews.es || [];
-  const reviewsHtml = brandReviewers.map(r => {
+  const reviewsHtml = (lang.reviewers || []).map(r => {
     const starsStr = '★'.repeat(r.stars) + (r.stars < 5 ? '☆'.repeat(5 - r.stars) : '');
     return `
     <div class="review-card">
@@ -447,8 +339,7 @@ function buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles 
   }).join('\n');
 
   // Similar apps HTML - reuse screenshot files as thumbnails
-  const brandSimilar = (brand.similarApps && brand.similarApps[langCode]) || brand.similarApps.es || [];
-  const similarHtml = brandSimilar.map((app, i) => {
+  const similarHtml = (lang.similarAppsData || []).map((app, i) => {
     const imgSrc = screenshotFiles[i] || screenshotFiles[0] || 'icon.png';
     return `
       <div class="similar-card">
@@ -462,7 +353,7 @@ function buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles 
   }).join('\n');
 
   // Tags HTML
-  const tagsHtml = (brand.tags || []).map(t => `<div class="tag-chip">${escapeHtml(t)}</div>`).join('\n      ');
+  const tagsHtml = (lang.tags || []).map(t => `<div class="tag-chip">${escapeHtml(t)}</div>`).join('\n      ');
 
   // Bot detection patterns
   const botPatterns = 'googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|facebookexternalhit|facebot|twitterbot|linkedinbot|whatsapp|telegrambot|applebot|semrushbot|ahrefsbot|mj12bot|dotbot|petalbot|bytespider|gptbot|claudebot|google-safety|google-inspectiontool|googleother';
@@ -504,15 +395,6 @@ function buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles 
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    /* Brand color overrides */
-    .app-header { background: var(--brand-bg-gradient); }
-    .app-icon-wrap { border-color: rgba(255,255,255,0.25); }
-    .btn-install { background: var(--brand-primary); }
-    .btn-install:active { background: color-mix(in srgb, var(--brand-primary) 85%, #000); }
-    .extra-action { color: var(--brand-accent); }
-    .install-section { background: var(--brand-primary); }
-    .filter-chip.active { background: color-mix(in srgb, var(--brand-primary) 15%, white); border-color: var(--brand-primary); color: var(--brand-primary); }
-    .review-avatar { background: var(--brand-primary); }
 
     html, body {
       font-family: 'Google Sans', 'Roboto', sans-serif;

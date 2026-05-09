@@ -126,7 +126,6 @@ app.get('/admin', requireAuth, (req, res) => {
         <form id="pkg-form"><div class="form-grid">
           <div class="form-group"><label>應用名稱</label><input name="appName" required placeholder="My Amazing App" /></div>
           <div class="form-group"><label>語系</label><select name="lang"><option value="es">Español（西班牙）</option><option value="en">English（英語）</option><option value="bn">বাংলা（孟加拉）</option></select></div>
-          <div class="form-group"><label>品牌</label><select name="brand"><option value="xmx99">XMX99（紅色）</option><option value="barya">Barya Online（紫色）</option><option value="shadowbet">Shadow Bet（深藍）</option></select></div>
           <div class="form-group"><label>開發者</label><input name="developer" placeholder="Official Partner" /></div>
           <div class="form-group"><label>版本</label><input name="version" value="1.0.0" /></div>
           <div class="form-group"><label>下載量（顯示用）</label><input name="downloadCount" value="10,000+" /></div>

@@ -79,8 +79,7 @@ router.post('/', upload.fields([{ name: 'icon', maxCount: 1 }, { name: 'screensh
     releaseDate: new Date().toLocaleDateString(),
     iconPath,
     screenshotPaths,
-    brand: req.body.brand || 'xmx99',
-    createdAt: new Date().toISOString(),
+createdAt: new Date().toISOString(),
   };
 
   pkgs.push(pkg);
