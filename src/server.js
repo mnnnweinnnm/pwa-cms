@@ -204,8 +204,8 @@ app.get('/admin', requireAuth, (req, res) => {
     <div id="tab-stats" class="tab-content" style="display:none">
       <div class="card"><div class="card-title">📊 統計 Dashboard</div>
         <div class="form-grid" style="margin-bottom:12px">
-          <div class="form-group"><label>PWA 包</label><select id="stats-pkg" onchange="loadStats()"><option value="">全部</option></select></div>
-          <div class="form-group"><label>日期範圍</label><div style="display:flex;gap:8px"><input type="date" id="stats-from" onchange="loadStats()" /><input type="date" id="stats-to" onchange="loadStats()" /></div></div>
+          <div class="form-group"><label>推廣連結</label><select id="stats-camp" style="min-width:200px"><option value="">全部</option></select></div>
+          <div class="form-group"><label>日期範圍</label><div style="display:flex;gap:8px"><input type="date" id="stats-from" /><input type="date" id="stats-to" /></div></div>
         </div>
         <div id="stats-summary" style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px"></div>
         <div id="stats-daily" class="hint"></div>
@@ -344,11 +344,11 @@ app.get('/admin', requireAuth, (req, res) => {
 
     // === Stats ===
     async function loadStats() {
-      var pkgId = document.getElementById('stats-pkg').value;
+      var campId = document.getElementById('stats-camp').value;
       var from = document.getElementById('stats-from').value;
       var to = document.getElementById('stats-to').value;
       var qs = '?';
-      if (pkgId) qs += 'pkgId=' + pkgId + '&';
+      if (campId) qs += 'campaignId=' + encodeURIComponent(campId) + '&';
       if (from) qs += 'from=' + from + '&';
       if (to) qs += 'to=' + to + '&';
       try {
@@ -357,20 +357,38 @@ app.get('/admin', requireAuth, (req, res) => {
         var types = ['page_view','install_click','install_complete','pwa_open','redirect','push_subscribe'];
         var labels = ['👁 瀏覽','☝️ 點安裝','✅ 安裝完成','📱 PWA開啟','➡️ 跳轉','🔔 推播訂閱'];
         document.getElementById('stats-summary').innerHTML = types.map(function(t,i) { return '<div style="text-align:center"><div style="font-size:24px;font-weight:700">'+(s.byType[t]||0)+'</div><div class="hint">'+labels[i]+'</div></div>'; }).join('');
-        var days = Object.keys(s.byDay||{}).sort().reverse().slice(0, 14);
+        var days = Object.keys(s.byDay||{}).sort().reverse();
         if (days.length) {
-          var tbl = '<table class="table"><thead><tr><th>日期</th>' + types.map(function(t,i){return '<th>'+labels[i]+'</th>';}).join('') + '</tr></thead><tbody>';
-          days.forEach(function(d) { tbl += '<tr><td>'+d+'</td>' + types.map(function(t){return '<td>'+(s.byDay[d][t]||0)+'</td>';}).join('') + '</tr>'; });
+          var tbl = '<table class="table"><thead><tr><th>日期</th>' + types.map(function(t,i){return '<th>'+labels[i]+'</th>';}).join('') + '<th>合計</th></tr></thead><tbody>';
+          var totals = {}; types.forEach(function(t){ totals[t] = 0; }); var grandTotal = 0;
+          days.forEach(function(d) {
+            var dayTotal = 0;
+            var cells = types.map(function(t){ var v = (s.byDay[d]||{})[t]||0; totals[t] += v; dayTotal += v; return '<td>'+v+'</td>'; }).join('');
+            grandTotal += dayTotal;
+            tbl += '<tr><td>'+d+'</td>' + cells + '<td style="font-weight:600">'+dayTotal+'</td></tr>';
+          });
+          tbl += '<tr style="font-weight:700;border-top:2px solid #45475a"><td>📊 加總</td>' + types.map(function(t){ return '<td>'+totals[t]+'</td>'; }).join('') + '<td>'+grandTotal+'</td></tr>';
           tbl += '</tbody></table>';
           document.getElementById('stats-daily').innerHTML = tbl;
         } else { document.getElementById('stats-daily').innerHTML = '<p class="hint">尚無數據</p>'; }
-        // populate pkg filter if empty
-        var sel = document.getElementById('stats-pkg');
+        // populate campaign filter if empty
+        var sel = document.getElementById('stats-camp');
         if (sel.options.length <= 1) {
-          try { var pkgs = await api('GET','/api/packages'); pkgs.forEach(function(p){ var o=document.createElement('option'); o.value=p.id; o.textContent=p.appName+' ('+String(p.lang).toUpperCase()+')'; sel.appendChild(o); }); } catch(e){}
+          try {
+            var cd = await api('GET','/api/campaigns');
+            (cd.campaigns||[]).forEach(function(c){
+              var o = document.createElement('option');
+              o.value = c.id;
+              o.textContent = c.subdomain + '.' + c.domain;
+              sel.appendChild(o);
+            });
+          } catch(e){}
         }
       } catch(err) { document.getElementById('stats-summary').innerHTML = '<span class="hint">載入失敗: '+esc(err.message)+'</span>'; }
     }
+    document.getElementById('stats-camp').onchange = loadStats;
+    document.getElementById('stats-from').onchange = loadStats;
+    document.getElementById('stats-to').onchange = loadStats;
 
     // === Audit ===
     async function loadAudit() {
