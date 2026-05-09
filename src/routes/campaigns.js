@@ -11,7 +11,7 @@ const path = require('path');
 const fs = require('fs');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
-const { buildDownloadPage, buildManifest } = require('../templates/download-page');
+const { buildDownloadPage, buildManifest, buildServiceWorker } = require('../templates/download-page');
 const { deployPage, removePage, verifyDeploy } = require('../services/deploy');
 const { requireAdmin } = require('../lib/auth-store');
 
@@ -134,23 +134,30 @@ router.post('/', async (req, res) => {
   const STAGING_DIR = path.join(__dirname, `../../staging/${subdomain}`);
   fs.mkdirSync(STAGING_DIR, { recursive: true });
 
-const CMS_BASE_URL = process.env.CMS_BASE_URL || 'https://admin.pwaadminhub.xyz';
-
-  fs.writeFileSync(path.join(STAGING_DIR, 'index.html'),
-    buildDownloadPage({ pkg, targetUrl, subdomain, domain, cmsBaseUrl: CMS_BASE_URL }));
-  fs.writeFileSync(path.join(STAGING_DIR, 'manifest.json'),
-    JSON.stringify(buildManifest({ pkg, subdomain, domain, cmsBaseUrl: CMS_BASE_URL }), null, 2));
-
+  // Copy icon
   if (pkg.iconPath && fs.existsSync(pkg.iconPath)) {
     fs.copyFileSync(pkg.iconPath, path.join(STAGING_DIR, 'icon.png'));
   }
+
+  // Copy screenshots and build relative filename list
+  const screenshotFiles = [];
   if (pkg.screenshotPaths) {
     pkg.screenshotPaths.forEach((sp, i) => {
       if (fs.existsSync(sp)) {
-        fs.copyFileSync(sp, path.join(STAGING_DIR, `screenshot-${i + 1}${path.extname(sp)}`));
+        const fname = `screenshot-${i + 1}${path.extname(sp)}`;
+        fs.copyFileSync(sp, path.join(STAGING_DIR, fname));
+        screenshotFiles.push(fname);
       }
     });
   }
+
+  // Generate index.html, manifest.json, sw.js
+  fs.writeFileSync(path.join(STAGING_DIR, 'index.html'),
+    buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles }));
+  fs.writeFileSync(path.join(STAGING_DIR, 'manifest.json'),
+    JSON.stringify(buildManifest({ pkg, subdomain, domain }), null, 2));
+  fs.writeFileSync(path.join(STAGING_DIR, 'sw.js'),
+    buildServiceWorker({ targetUrl }));
 
   let deployed = false;
   let verified = false;
