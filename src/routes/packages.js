@@ -79,6 +79,7 @@ router.post('/', upload.fields([{ name: 'icon', maxCount: 1 }, { name: 'screensh
     releaseDate: new Date().toLocaleDateString(),
     iconPath,
     screenshotPaths,
+    brand: req.body.brand || 'xmx99',
     createdAt: new Date().toISOString(),
   };
 
@@ -104,6 +105,7 @@ router.put('/:id', upload.fields([{ name: 'icon', maxCount: 1 }, { name: 'screen
     version: req.body.version ?? existing.version,
     downloadCount: req.body.downloadCount ?? existing.downloadCount,
     rating: req.body.rating ?? existing.rating,
+    brand: req.body.brand ?? existing.brand ?? 'xmx99',
   };
 
   if (req.files['icon']?.[0]) {
