@@ -191,7 +191,7 @@ router.post('/', async (req, res) => {
 
 // GET single campaign
 router.get('/:id', async (req, res) => {
-  const campaigns = loadCampaignsData();
+  const campaigns = loadCampaigns();
   const c = campaigns.find(c => c.id === req.params.id);
   if (!c) return res.status(404).json({ error: 'Not found' });
   res.json(c);
@@ -199,7 +199,7 @@ router.get('/:id', async (req, res) => {
 
 // PUT update campaign
 router.put('/:id', requireAdmin, async (req, res) => {
-  const campaigns = loadCampaignsData();
+  const campaigns = loadCampaigns();
   const idx = campaigns.findIndex(c => c.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Not found' });
   const { subdomain, domain, targetUrl, pkgId } = req.body;

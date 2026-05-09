@@ -332,6 +332,8 @@ app.get('/admin', requireAuth, (req, res) => {
       if (action === 'close-pkg-modal') return closePkgModal();
       if (action === 'close-camp-modal') return closeCampModal();
       if (action === 'del-pkg') return delPkg(btn.dataset.id);
+      if (action === 'del-pkg-icon') return delPkgIcon();
+      if (action === 'del-pkg-ss') return delPkgScreenshot(btn.dataset.index);
       if (action === 'verify-camp') return verifyCamp(btn.dataset.id);
       if (action === 'del-camp') return delCamp(btn.dataset.id);
       if (action === 'domain-status') return setDomainStatus(btn.dataset.domain, btn.dataset.status);
@@ -386,9 +388,11 @@ app.get('/admin', requireAuth, (req, res) => {
     }
 
     // === Package Edit ===
+    var _pkgEditId = null;
     async function openPkgEditModal(id) {
       try {
         var pkg = await api('GET', '/api/packages/' + id);
+        _pkgEditId = pkg.id;
         document.getElementById('pkg-edit-id').value = pkg.id;
         document.getElementById('pkg-edit-name').value = pkg.appName || '';
         document.getElementById('pkg-edit-dev').value = pkg.developer || '';
@@ -397,10 +401,33 @@ app.get('/admin', requireAuth, (req, res) => {
         document.getElementById('pkg-edit-dl').value = pkg.downloadCount || '';
         document.getElementById('pkg-edit-rating').value = pkg.rating || '';
         document.getElementById('pkg-edit-desc').value = pkg.description || '';
+        // Icon preview
+        var iconBox = document.getElementById('pkg-edit-icon-preview');
+        if (pkg.iconUrl) {
+          iconBox.innerHTML = '<div style="display:flex;align-items:center;gap:12px"><img src="' + esc(pkg.iconUrl) + '" style="width:64px;height:64px;border-radius:12px;object-fit:cover"><button type="button" data-action="del-pkg-icon" style="padding:4px 10px;background:#f38ba8;border:none;border-radius:4px;color:#1e1e2e;cursor:pointer;font-size:12px">刪除</button></div>';
+        } else {
+          iconBox.innerHTML = '<span style="color:#6c7086">無 icon</span>';
+        }
+        // Screenshot previews
+        var ssBox = document.getElementById('pkg-edit-ss-preview');
+        var ssHtml = '';
+        var shots = pkg.screenshots || [];
+        for (var i = 0; i < shots.length; i++) {
+          ssHtml += '<div style="position:relative;display:inline-block;margin:4px"><img src="' + esc(shots[i]) + '" style="height:120px;border-radius:6px;object-fit:cover"><button type="button" data-action="del-pkg-ss" data-index="' + i + '" style="position:absolute;top:2px;right:2px;background:#f38ba8;border:none;border-radius:50%;width:22px;height:22px;color:#1e1e2e;cursor:pointer;font-size:14px;line-height:20px;padding:0">&times;</button></div>';
+        }
+        ssBox.innerHTML = ssHtml || '<span style="color:#6c7086">無截圖</span>';
         document.getElementById('pkg-edit-modal').style.display = 'flex';
       } catch(err) { msg('pkg-msg', '❌ 載入失敗: ' + err.message, false); }
     }
-    function closePkgModal() { document.getElementById('pkg-edit-modal').style.display = 'none'; }
+    function closePkgModal() { document.getElementById('pkg-edit-modal').style.display = 'none'; _pkgEditId = null; }
+    async function delPkgIcon() {
+      if (!_pkgEditId || !confirm('確認刪除 icon？')) return;
+      try { await api('DELETE', '/api/packages/' + _pkgEditId + '/icon'); openPkgEditModal(_pkgEditId); } catch(e) { alert('刪除失敗'); }
+    }
+    async function delPkgScreenshot(idx) {
+      if (!_pkgEditId || !confirm('確認刪除這張截圖？')) return;
+      try { await api('DELETE', '/api/packages/' + _pkgEditId + '/screenshots/' + idx); openPkgEditModal(_pkgEditId); } catch(e) { alert('刪除失敗'); }
+    }
     document.getElementById('pkg-edit-form').onsubmit = async function(e) {
       e.preventDefault();
       var id = document.getElementById('pkg-edit-id').value;
@@ -460,8 +487,9 @@ app.get('/admin', requireAuth, (req, res) => {
         <h3 style="margin:0;color:#cdd6f4">📦 編輯 PWA 包</h3>
         <button data-action="close-pkg-modal" style="background:none;border:none;color:#cdd6f4;font-size:20px;cursor:pointer">&times;</button>
       </div>
-      <form id="pkg-edit-form">
+      <form id="pkg-edit-form" enctype="multipart/form-data">
         <input type="hidden" name="id" id="pkg-edit-id">
+        <div style="margin-bottom:12px"><label style="color:#a6adc8;display:block;margin-bottom:4px">Icon</label><div id="pkg-edit-icon-preview" style="margin-bottom:8px"></div><input type="file" name="icon" accept="image/*" style="color:#cdd6f4;font-size:12px"></div>
         <div style="margin-bottom:12px"><label style="color:#a6adc8;display:block;margin-bottom:4px">應用名稱</label><input type="text" name="appName" id="pkg-edit-name" required style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></div>
         <div style="display:flex;gap:12px;margin-bottom:12px">
           <div style="flex:1"><label style="color:#a6adc8;display:block;margin-bottom:4px">開發者</label><input type="text" name="developer" id="pkg-edit-dev" style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></div>
@@ -472,6 +500,7 @@ app.get('/admin', requireAuth, (req, res) => {
           <div style="flex:1"><label style="color:#a6adc8;display:block;margin-bottom:4px">下載量</label><input type="text" name="downloadCount" id="pkg-edit-dl" style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></div>
           <div style="flex:1"><label style="color:#a6adc8;display:block;margin-bottom:4px">評分</label><input type="text" name="rating" id="pkg-edit-rating" style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></div>
         </div>
+        <div style="margin-bottom:12px"><label style="color:#a6adc8;display:block;margin-bottom:4px">截圖</label><div id="pkg-edit-ss-preview" style="margin-bottom:8px;max-height:200px;overflow-y:auto"></div><label style="color:#6c7086;font-size:12px">新增截圖（可多選）</label><input type="file" name="screenshots" accept="image/*" multiple style="color:#cdd6f4;font-size:12px"></div>
         <div style="margin-bottom:16px"><label style="color:#a6adc8;display:block;margin-bottom:4px">說明</label><textarea name="description" id="pkg-edit-desc" rows="2" style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></textarea></div>
         <div style="display:flex;gap:12px;justify-content:flex-end">
           <button type="button" data-action="close-pkg-modal" style="padding:8px 16px;background:#45475a;border:none;border-radius:6px;color:#cdd6f4;cursor:pointer">取消</button>

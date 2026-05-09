@@ -133,3 +133,29 @@ router.delete('/:id', (req, res) => {
 });
 
 module.exports = router;
+
+// DELETE single screenshot
+router.delete('/:id/screenshots/:index', (req, res) => {
+  const pkgs = loadPackages();
+  const idx = pkgs.findIndex(p => p.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Not found' });
+  const sIdx = parseInt(req.params.index, 10);
+  const paths = pkgs[idx].screenshotPaths || [];
+  if (sIdx < 0 || sIdx >= paths.length) return res.status(400).json({ error: 'Invalid index' });
+  paths.splice(sIdx, 1);
+  pkgs[idx].screenshotPaths = paths;
+  savePackages(pkgs);
+  audit.log('package.screenshot.delete', { user: req.user?.username, target: req.params.id, detail: { index: sIdx }, ip: req.ip });
+  res.json({ success: true, remaining: paths.length });
+});
+
+// DELETE icon
+router.delete('/:id/icon', (req, res) => {
+  const pkgs = loadPackages();
+  const idx = pkgs.findIndex(p => p.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Not found' });
+  pkgs[idx].iconPath = null;
+  savePackages(pkgs);
+  audit.log('package.icon.delete', { user: req.user?.username, target: req.params.id, ip: req.ip });
+  res.json({ success: true });
+});
