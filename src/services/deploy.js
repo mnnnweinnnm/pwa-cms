@@ -1,7 +1,6 @@
 /**
  * 部署服務：將生成的下載頁 rsync 到 VPS1
  */
-const { NodeSSH } = require('ssh2-sftp-client');
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('ssh2-sftp-client');
@@ -75,7 +74,7 @@ async function removePage(subdomain) {
 }
 
 async function verifyDeploy(subdomain, domain) {
-  const url = `https://${subdomain}.download.${domain}/`;
+  const url = `https://${subdomain}.${domain}/`;
   const maxAttempts = 10;
   const delay = (ms) => new Promise(r => setTimeout(r, ms));
 

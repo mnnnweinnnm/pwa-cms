@@ -9,7 +9,6 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const { execSync } = require('child_process');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { buildDownloadPage, buildManifest } = require('../templates/download-page');
@@ -33,40 +32,8 @@ function saveCampaigns(campaigns) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(campaigns, null, 2));
 }
 
-// SSH 到 VPS1 動態加 subdomain 到 Caddyfile + reload
-async function addCaddySubdomain(subdomain, domain) {
-  const block = `${subdomain}.download.${domain} {
-    root * /var/www/pwa-downloads/${subdomain}
-    try_files {path} /index.html
-    file_server
-    encode gzip
-}
-`;
-
-  // 用 here-doc 方式 SSH 過去執行，避免複雜引號轉義
-  const script = [
-    `EXISTING=$(grep -cF "${subdomain}.download.${domain}" /etc/caddy/Caddyfile 2>/dev/null || echo 0)`,
-    `if [ "$EXISTING" -gt 0 ]; then`,
-    `  echo "already exists"`,
-    `  exit 0`,
-    `fi`,
-    // 插在 wildcard /*.download... 行之前
-    `awk '/^\\*\\.download\\.${domain} / && !added {print; print "${block.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n')}"; added=1; next} {print}' /etc/caddy/Caddyfile > /tmp/Caddyfile.new`,
-    `mv /tmp/Caddyfile.new /etc/caddy/Caddyfile`,
-    `caddy reload --config /etc/caddy/Caddyfile`,
-    `echo "done"`,
-  ].join('; ');
-
-  return new Promise((resolve) => {
-    try {
-      const cmd = `ssh -i /root/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o LogLevel=ERROR root@128.199.249.195 '${script}'`;
-      const out = execSync(cmd, { stdio: 'pipe', timeout: 30000 });
-      console.log('Caddy SSH:', out.toString().trim());
-    } catch (e) {
-      console.log('Caddy SSH error:', e.message.slice(-200));
-    }
-    resolve();
-  });
+function buildDownloadUrl(subdomain, domain) {
+  return `https://${subdomain}.${domain}/`;
 }
 
 // GET list
@@ -131,12 +98,11 @@ router.post('/', async (req, res) => {
 
   let deployed = false;
   let verified = false;
-  const downloadUrl = `https://${subdomain}.download.${domain}/`;
+  const downloadUrl = buildDownloadUrl(subdomain, domain);
 
   try {
     await deployPage(subdomain, STAGING_DIR);
     deployed = true;
-    await addCaddySubdomain(subdomain, domain);
     await new Promise(r => setTimeout(r, 6000));
     const result = await verifyDeploy(subdomain, domain);
     verified = result.ok;
