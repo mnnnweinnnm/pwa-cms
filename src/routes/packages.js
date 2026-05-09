@@ -12,6 +12,7 @@ const path = require('path');
 const fs = require('fs');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
+const audit = require('../services/audit-log');
 
 // Storage
 const UPLOAD_BASE = path.join(__dirname, '../../uploads');
@@ -83,6 +84,7 @@ router.post('/', upload.fields([{ name: 'icon', maxCount: 1 }, { name: 'screensh
 
   pkgs.push(pkg);
   savePackages(pkgs);
+  audit.log('package.create', { user: req.user?.username, target: pkg.id, detail: { appName, lang, version }, ip: req.ip });
   res.status(201).json({ ...pkg, iconUrl: `/uploads/icons/${path.basename(pkg.iconPath || '')}`, screenshots: (pkg.screenshotPaths || []).map(s => `/uploads/screenshots/${path.basename(s)}`) });
 });
 
@@ -113,6 +115,7 @@ router.put('/:id', upload.fields([{ name: 'icon', maxCount: 1 }, { name: 'screen
 
   pkgs[idx] = updated;
   savePackages(pkgs);
+  audit.log('package.update', { user: req.user?.username, target: updated.id, detail: { appName: updated.appName, lang: updated.lang, version: updated.version }, ip: req.ip });
   res.json({ ...updated, iconUrl: `/uploads/icons/${path.basename(updated.iconPath || '')}`, screenshots: (updated.screenshotPaths || []).map(s => `/uploads/screenshots/${path.basename(s)}`) });
 });
 
@@ -124,6 +127,7 @@ router.delete('/:id', (req, res) => {
 
   const [removed] = pkgs.splice(idx, 1);
   savePackages(pkgs);
+  audit.log('package.delete', { user: req.user?.username, target: removed.id, detail: { appName: removed.appName }, ip: req.ip });
   res.json({ ok: true, id: removed.id });
 });
 

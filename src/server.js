@@ -10,6 +10,10 @@ const packagesRouter = require('./routes/packages');
 const campaignsRouter = require('./routes/campaigns');
 const authRouter = require('./routes/auth');
 const usersRouter = require('./routes/users');
+const pushRouter = require('./routes/push');
+const healthRouter = require('./routes/health-check');
+const statsRouter = require('./routes/stats');
+const auditRouter = require('./routes/audit');
 const { ensureDefaultAdmin, getRequestUser, requireAuth, publicUser } = require('./lib/auth-store');
 
 const app = express();
@@ -27,6 +31,10 @@ app.use('/api/auth', authRouter);
 app.use('/api/packages', requireAuth, packagesRouter);
 app.use('/api/campaigns', requireAuth, campaignsRouter);
 app.use('/api/users', requireAuth, usersRouter);
+app.use('/api/push', pushRouter);  // subscribe/unsubscribe are public, stats/send/recall require auth
+app.use('/api/health', requireAuth, healthRouter);
+app.use('/api/stats', statsRouter);  // /event is public, / and /range require auth
+app.use('/api/audit', auditRouter);
 
 app.get('/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
@@ -104,6 +112,10 @@ app.get('/admin', requireAuth, (req, res) => {
     <a class="active" data-tab="packages" onclick="showTab('packages', this)">📦 PWA 包</a>
     <a data-tab="campaigns" onclick="showTab('campaigns', this)">🔗 推廣連結</a>
     <a data-tab="domains" onclick="showTab('domains', this)">🌐 域名設定</a>
+    <a data-tab="stats" onclick="showTab('stats', this)">📊 統計</a>
+    <a data-tab="health" onclick="showTab('health', this)">🛡️ 域名健康</a>
+    <a id="push-nav" data-tab="push" onclick="showTab('push', this)" style="display:none">📲 推播</a>
+    <a id="audit-nav" data-tab="audit" onclick="showTab('audit', this)" style="display:none">📋 操作紀錄</a>
     <a id="users-nav" data-tab="users" onclick="showTab('users', this)" style="display:none">👥 使用者</a>
     <span class="spacer"></span><span class="user-pill" id="user-pill"></span><a onclick="logout()">登出</a>
   </nav>
@@ -149,6 +161,68 @@ app.get('/admin', requireAuth, (req, res) => {
       <div class="card"><div class="card-title">域名狀態</div><table class="table"><thead><tr><th>域名</th><th>狀態</th><th>備註</th><th>操作</th></tr></thead><tbody id="domain-table-body"></tbody></table></div>
     </div>
 
+    <div id="tab-health" class="tab-content" style="display:none">
+      <div class="card">
+        <div class="card-title">🛡️ 域名健康檢查</div>
+        <p class="hint" style="margin-bottom:12px">檢查所有 campaign 下載頁是否被 Google SafeBrowsing 標記。需設定 <code>GOOGLE_SAFEBROWSING_KEY</code> 環境變數才能使用 API 檢查；未設定時僅進行 HTTP 狀態檢查。</p>
+        <button class="btn btn-primary" id="check-all-btn" onclick="runCheckAll()">🔍 檢查所有域名</button>
+        <button class="btn btn-muted" style="margin-left:8px" onclick="loadHealthStatus()">🔄 刷新結果</button>
+        <div id="health-msg"></div>
+        <div id="health-last-check" style="margin-top:12px;font-size:13px;color:#718096"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">檢查結果</div>
+        <table class="table"><thead><tr><th>URL</th><th>狀態</th><th>HTTP</th><th>威脅</th><th>檢查時間</th></tr></thead><tbody id="health-table-body"><tr><td colspan="5" class="hint">尚無檢查結果，點擊上方按鈕開始檢查</td></tr></tbody></table>
+      </div>
+      <div class="card">
+        <div class="card-title">單一 URL 檢查</div>
+        <div class="form-grid"><div class="form-group"><label>URL</label><input id="single-health-url" placeholder="https://example.xmx99juego.online/" /></div></div>
+        <button class="btn btn-primary" onclick="runSingleCheck()">檢查</button>
+        <div id="single-health-msg"></div>
+      </div>
+    </div>
+
+    <div id="tab-push" class="tab-content" style="display:none">
+      <div class="card"><div class="card-title">📊 推播統計</div>
+        <div id="push-stats"><p class="hint">載入中...</p></div>
+      </div>
+      <div class="card"><div class="card-title">📤 手動推播</div>
+        <form id="push-form"><div class="form-grid">
+          <div class="form-group"><label>Campaign（留空=全部）</label><select name="campaignId" id="push-camp-select"><option value="">-- 全部訂閱者 --</option></select></div>
+          <div class="form-group"><label>標題</label><input name="title" required placeholder="Notification title" /></div>
+          <div class="form-group"><label>內文</label><input name="body" required placeholder="Notification body" /></div>
+          <div class="form-group"><label>連結 URL（選填）</label><input name="url" placeholder="https://..." /></div>
+        </div><button class="btn btn-primary" type="submit">發送推播</button></form><div id="push-msg"></div>
+      </div>
+      <div class="card"><div class="card-title">🔄 自動召回（Recall）</div>
+        <div id="recall-stats"></div>
+        <button class="btn btn-muted" onclick="triggerRecall()">手動觸發 Recall 檢查</button>
+        <div id="recall-msg"></div>
+      </div>
+    </div>
+
+    <div id="tab-stats" class="tab-content" style="display:none">
+      <div class="card"><div class="card-title">📊 統計 Dashboard</div>
+        <div class="form-grid" style="margin-bottom:12px">
+          <div class="form-group"><label>PWA 包</label><select id="stats-pkg" onchange="loadStats()"><option value="">全部</option></select></div>
+          <div class="form-group"><label>日期範圍</label><div style="display:flex;gap:8px"><input type="date" id="stats-from" onchange="loadStats()" /><input type="date" id="stats-to" onchange="loadStats()" /></div></div>
+        </div>
+        <div id="stats-summary" style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px"></div>
+        <div id="stats-daily" class="hint"></div>
+      </div>
+    </div>
+
+    <div id="tab-audit" class="tab-content" style="display:none">
+      <div class="card"><div class="card-title">📋 操作紀錄</div>
+        <div class="form-grid" style="margin-bottom:12px">
+          <div class="form-group"><label>使用者</label><input id="audit-user" placeholder="全部" /></div>
+          <div class="form-group"><label>筆數</label><select id="audit-limit" onchange="loadAudit()"><option value="50">50</option><option value="100" selected>100</option><option value="200">200</option></select></div>
+        </div>
+        <button class="btn btn-muted" onclick="loadAudit()">🔄 刷新</button>
+        <table class="table" style="margin-top:12px"><thead><tr><th>時間</th><th>使用者</th><th>操作</th><th>對象</th><th>詳情</th></tr></thead><tbody id="audit-table-body"></tbody></table>
+      </div>
+    </div>
+
     <div id="tab-users" class="tab-content" style="display:none">
       <div class="card"><div class="card-title">新增使用者</div>
         <form id="user-form"><div class="form-grid"><div class="form-group"><label>帳號</label><input name="username" required placeholder="user01" /></div><div class="form-group"><label>顯示名稱</label><input name="displayName" placeholder="Team User" /></div><div class="form-group"><label>角色</label><select name="role"><option value="user">一般使用者</option><option value="admin">管理員</option></select></div><div class="form-group"><label>初始密碼</label><input name="password" type="password" required minlength="8" /></div></div><button class="btn btn-primary" type="submit">建立使用者</button></form><div id="user-msg"></div>
@@ -161,7 +235,7 @@ app.get('/admin', requireAuth, (req, res) => {
     const currentUser = ${currentUser};
     const isAdmin = currentUser.role === 'admin';
     document.getElementById('user-pill').textContent = currentUser.displayName + ' / ' + currentUser.role;
-    if (isAdmin) document.getElementById('users-nav').style.display = '';
+    if (isAdmin) { document.getElementById('users-nav').style.display = ''; document.getElementById('push-nav').style.display = ''; document.getElementById('audit-nav').style.display = ''; }
 
     async function api(method, url, body) {
       const opts = { method, headers: {} };
@@ -176,9 +250,9 @@ app.get('/admin', requireAuth, (req, res) => {
     function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
     function msg(id, text, ok=true) { const el=document.getElementById(id); if(!el) return; el.className='msg '+(ok?'msg-success':'msg-error'); el.textContent=text; }
     async function logout(){ await api('POST','/api/auth/logout'); location.href='/login'; }
-    function showTab(name, el) { document.querySelectorAll('.tab-content').forEach(x => x.style.display='none'); document.getElementById('tab-'+name).style.display='block'; document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('active')); if(el) el.classList.add('active'); if(name==='packages') loadPackages(); if(name==='campaigns'){loadCampaigns(); loadPkgOptions();} if(name==='domains') loadDomains(); if(name==='users') loadUsers(); }
+    function showTab(name, el) { document.querySelectorAll('.tab-content').forEach(x => x.style.display='none'); document.getElementById('tab-'+name).style.display='block'; document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('active')); if(el) el.classList.add('active'); if(name==='packages') loadPackages(); if(name==='campaigns'){loadCampaigns(); loadPkgOptions();} if(name==='domains') loadDomains(); if(name==='health') loadHealthStatus(); if(name==='users') loadUsers(); if(name==='push') loadPushStats(); if(name==='stats') loadStats(); if(name==='audit') loadAudit(); }
 
-    async function loadPackages(){ const pkgs=await api('GET','/api/packages'); document.querySelector('#pkg-table tbody').innerHTML=pkgs.map(p=>'<tr><td>'+esc(p.appName)+'</td><td><span class="badge badge-'+esc(p.lang)+'">'+esc(String(p.lang).toUpperCase())+'</span></td><td>v'+esc(p.version)+'</td><td>'+((p.screenshots||[]).length)+' 張截圖</td><td><button class="btn btn-danger btn-sm" data-action="del-pkg" data-id="'+esc(p.id)+'">刪除</button></td></tr>').join(''); }
+    async function loadPackages(){ const pkgs=await api('GET','/api/packages'); document.querySelector('#pkg-table tbody').innerHTML=pkgs.map(p=>'<tr><td>'+esc(p.appName)+'</td><td><span class="badge badge-'+esc(p.lang)+'">'+esc(String(p.lang).toUpperCase())+'</span></td><td>v'+esc(p.version)+'</td><td>'+((p.screenshots||[]).length)+' 張截圖</td><td><button class="btn btn-muted btn-sm" data-action="edit-pkg" data-id="'+esc(p.id)+'">編輯</button> <button class="btn btn-danger btn-sm" data-action="del-pkg" data-id="'+esc(p.id)+'">刪除</button></td></tr>').join(''); }
     document.getElementById('pkg-form').onsubmit=async(e)=>{e.preventDefault();try{await api('POST','/api/packages',new FormData(e.target));msg('pkg-msg','✅ PWA 包建立成功');e.target.reset();loadPackages();}catch(err){msg('pkg-msg','❌ 建立失敗：'+err.message,false);}};
     async function delPkg(id){ if(!confirm('確認刪除？'))return; await api('DELETE','/api/packages/'+id); loadPackages(); }
 
@@ -200,10 +274,60 @@ app.get('/admin', requireAuth, (req, res) => {
     async function delUser(id){ if(!confirm('確認刪除此使用者？'))return; await api('DELETE','/api/users/'+id); loadUsers(); }
 
 
+    async function loadHealthStatus(){ try{ const data=await api('GET','/api/health/status'); renderHealthResults(data); }catch(err){ msg('health-msg','❌ '+err.message,false); } }
+    function renderHealthResults(data){ document.getElementById('health-last-check').textContent=data.lastCheckAt?'上次檢查：'+new Date(data.lastCheckAt).toLocaleString():'尚未檢查'; const results=data.results||{}; const urls=Object.keys(results); if(urls.length===0){ document.getElementById('health-table-body').innerHTML='<tr><td colspan="5" class="hint">尚無檢查結果</td></tr>'; return; } document.getElementById('health-table-body').innerHTML=urls.map(u=>{ const r=results[u]; const statusBadge=r.safe?'<span class="badge badge-active">✅ Safe</span>':(r.threats&&r.threats.length?'<span class="badge" style="background:#fed7d7;color:#c53030">🔴 Flagged</span>':'<span class="badge badge-pending">⚠️ Warning</span>'); const httpStr=r.httpStatus?(r.httpStatus<400?'<span style="color:#276749">'+r.httpStatus+'</span>':'<span style="color:#c53030">'+r.httpStatus+'</span>'):(r.httpError?'<span style="color:#c53030">Error</span>':'-'); const threats=r.threats&&r.threats.length?r.threats.map(t=>esc(t.type)).join(', '):'—'; const time=r.checkedAt?new Date(r.checkedAt).toLocaleString():'-'; return '<tr><td style="font-size:12px;word-break:break-all">'+esc(u)+'</td><td>'+statusBadge+'</td><td>'+httpStr+'</td><td style="font-size:12px">'+threats+'</td><td style="font-size:12px">'+time+'</td></tr>'; }).join(''); }
+    async function runCheckAll(){ const btn=document.getElementById('check-all-btn'); btn.disabled=true; btn.textContent='檢查中...'; try{ const data=await api('POST','/api/health/check-all'); renderHealthResults(data); msg('health-msg','✅ 檢查完成'); }catch(err){ msg('health-msg','❌ '+err.message,false); } btn.disabled=false; btn.textContent='🔍 檢查所有域名'; }
+    async function runSingleCheck(){ const url=document.getElementById('single-health-url').value.trim(); if(!url)return; try{ const r=await api('POST','/api/health/check',{url}); msg('single-health-msg',(r.safe?'✅ Safe':'🔴 Flagged: '+r.threats.map(t=>t.type).join(', '))+(r.httpStatus?' (HTTP '+r.httpStatus+')':'')); }catch(err){ msg('single-health-msg','❌ '+err.message,false); } }
+
+    // Push notification functions
+    async function loadPushStats(){
+      try {
+        const stats = await api('GET','/api/push/stats');
+        let html = '<div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:12px">';
+        html += '<div><strong>'+stats.total+'</strong><br><span class="hint">總訂閱</span></div>';
+        html += '<div><strong>'+stats.active+'</strong><br><span class="hint">活躍</span></div>';
+        html += '<div><strong>'+stats.inactive+'</strong><br><span class="hint">已停用</span></div>';
+        html += '</div>';
+        if (stats.byCampaign && Object.keys(stats.byCampaign).length) {
+          html += '<div style="margin-top:8px"><strong>By Campaign:</strong><br>';
+          for (const [k,v] of Object.entries(stats.byCampaign)) { html += '<span class="badge" style="margin:2px">'+esc(k)+': '+v+'</span> '; }
+          html += '</div>';
+        }
+        document.getElementById('push-stats').innerHTML = html;
+        let rhtml = '<div style="margin-bottom:12px">';
+        rhtml += '<span class="badge badge-active">24h 已發: '+stats.recalls['24h_sent']+'</span> ';
+        rhtml += '<span class="badge badge-active">48h 已發: '+stats.recalls['48h_sent']+'</span>';
+        rhtml += '</div>';
+        document.getElementById('recall-stats').innerHTML = rhtml;
+        try {
+          const {campaigns} = await api('GET','/api/campaigns');
+          document.getElementById('push-camp-select').innerHTML = '<option value="">-- 全部訂閱者 --</option>' + campaigns.map(c => '<option value="'+esc(c.id)+'">'+esc(c.pkgName)+' ('+esc(c.subdomain)+'.'+esc(c.domain)+')</option>').join('');
+        } catch(e) {}
+      } catch(err) { document.getElementById('push-stats').innerHTML = '<span class="hint">無法載入: '+esc(err.message)+'</span>'; }
+    }
+    document.getElementById('push-form').onsubmit=async(e)=>{
+      e.preventDefault();
+      try {
+        const data = Object.fromEntries(new FormData(e.target));
+        if (!data.campaignId) delete data.campaignId;
+        const r = await api('POST','/api/push/send', data);
+        msg('push-msg', '✅ 已發送! sent='+r.sent+' failed='+r.failed);
+        loadPushStats();
+      } catch(err) { msg('push-msg', '❌ '+err.message, false); }
+    };
+    async function triggerRecall(){
+      try {
+        const r = await api('POST','/api/push/recall');
+        msg('recall-msg', '✅ Recall 完成: 24h='+r['24h_sent']+' 48h='+r['48h_sent']+' failed='+r.failed);
+        loadPushStats();
+      } catch(err) { msg('recall-msg', '❌ '+err.message, false); }
+    }
+
     document.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
       const action = btn.dataset.action;
+      if (action === 'edit-pkg') return editPkg(btn.dataset.id);
       if (action === 'del-pkg') return delPkg(btn.dataset.id);
       if (action === 'verify-camp') return verifyCamp(btn.dataset.id);
       if (action === 'del-camp') return delCamp(btn.dataset.id);
@@ -213,7 +337,80 @@ app.get('/admin', requireAuth, (req, res) => {
       if (action === 'del-user') return delUser(btn.dataset.id);
     });
 
+    // === Stats ===
+    async function loadStats() {
+      var pkgId = document.getElementById('stats-pkg').value;
+      var from = document.getElementById('stats-from').value;
+      var to = document.getElementById('stats-to').value;
+      var qs = '?';
+      if (pkgId) qs += 'pkgId=' + pkgId + '&';
+      if (from) qs += 'from=' + from + '&';
+      if (to) qs += 'to=' + to + '&';
+      try {
+        var r = await api('GET', '/api/stats' + qs);
+        var s = r.summary;
+        var types = ['page_view','install_click','install_complete','pwa_open','redirect','push_subscribe'];
+        var labels = ['👁 瀏覽','☝️ 點安裝','✅ 安裝完成','📱 PWA開啟','➡️ 跳轉','🔔 推播訂閱'];
+        document.getElementById('stats-summary').innerHTML = types.map(function(t,i) { return '<div style="text-align:center"><div style="font-size:24px;font-weight:700">'+(s.byType[t]||0)+'</div><div class="hint">'+labels[i]+'</div></div>'; }).join('');
+        var days = Object.keys(s.byDay||{}).sort().reverse().slice(0, 14);
+        if (days.length) {
+          var tbl = '<table class="table"><thead><tr><th>日期</th>' + types.map(function(t,i){return '<th>'+labels[i]+'</th>';}).join('') + '</tr></thead><tbody>';
+          days.forEach(function(d) { tbl += '<tr><td>'+d+'</td>' + types.map(function(t){return '<td>'+(s.byDay[d][t]||0)+'</td>';}).join('') + '</tr>'; });
+          tbl += '</tbody></table>';
+          document.getElementById('stats-daily').innerHTML = tbl;
+        } else { document.getElementById('stats-daily').innerHTML = '<p class="hint">尚無數據</p>'; }
+        // populate pkg filter if empty
+        var sel = document.getElementById('stats-pkg');
+        if (sel.options.length <= 1) {
+          try { var pkgs = await api('GET','/api/packages'); pkgs.forEach(function(p){ var o=document.createElement('option'); o.value=p.id; o.textContent=p.appName+' ('+String(p.lang).toUpperCase()+')'; sel.appendChild(o); }); } catch(e){}
+        }
+      } catch(err) { document.getElementById('stats-summary').innerHTML = '<span class="hint">載入失敗: '+esc(err.message)+'</span>'; }
+    }
+
+    // === Audit ===
+    async function loadAudit() {
+      if (!isAdmin) return;
+      var user = document.getElementById('audit-user').value.trim();
+      var limit = document.getElementById('audit-limit').value;
+      var qs = '?limit=' + limit;
+      if (user) qs += '&user=' + encodeURIComponent(user);
+      try {
+        var r = await api('GET', '/api/audit' + qs);
+        document.getElementById('audit-table-body').innerHTML = r.entries.map(function(e) {
+          return '<tr><td style="font-size:12px;white-space:nowrap">'+new Date(e.timestamp).toLocaleString()+'</td><td>'+esc(e.user)+'</td><td><span class="badge">'+esc(e.action)+'</span></td><td style="font-size:12px">'+esc(e.target)+'</td><td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis">'+esc(JSON.stringify(e.detail||''))+'</td></tr>';
+        }).join('');
+      } catch(err) { document.getElementById('audit-table-body').innerHTML = '<tr><td colspan="5" class="hint">載入失敗</td></tr>'; }
+    }
+
+    // === Package Edit ===
+    async function editPkg(id) {
+      try {
+        var pkg = await api('GET', '/api/packages/' + id);
+        var newName = prompt('應用名稱', pkg.appName);
+        if (newName === null) return;
+        var newDev = prompt('開發者', pkg.developer || '');
+        var newVer = prompt('版本', pkg.version || '1.0.0');
+        var newDesc = prompt('說明', pkg.description || '');
+        var newLang = prompt('語系 (es/en/bn)', pkg.lang || 'es');
+        var newDl = prompt('下載量', pkg.downloadCount || '10,000+');
+        var newRating = prompt('評分', pkg.rating || '4.8');
+        var fd = new FormData();
+        fd.append('appName', newName || pkg.appName);
+        fd.append('developer', newDev || pkg.developer || '');
+        fd.append('version', newVer || pkg.version || '1.0.0');
+        fd.append('description', newDesc || pkg.description || '');
+        fd.append('lang', newLang || pkg.lang || 'es');
+        fd.append('downloadCount', newDl || pkg.downloadCount || '10,000+');
+        fd.append('rating', newRating || pkg.rating || '4.8');
+        await fetch('/api/packages/' + id, { method: 'PUT', body: fd });
+        msg('pkg-msg', '✅ 包已更新');
+        loadPackages();
+      } catch(err) { msg('pkg-msg', '❌ 更新失敗: ' + err.message, false); }
+    }
+
     loadPackages();
+    if(location.hash==='#health') showTab('health',document.querySelector('[data-tab="health"]'));
+    if(location.hash==='#stats') showTab('stats',document.querySelector('[data-tab="stats"]'));
   </script>
 </body>
 </html>`);

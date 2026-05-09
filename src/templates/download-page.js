@@ -189,7 +189,106 @@ function escapeHtml(str) {
  * @param {string} opts.domain
  * @param {string[]} opts.screenshotFiles - relative filenames in staging dir (e.g. ['screenshot-1.jpg', ...])
  */
-function buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles = [] }) {
+/**
+ * Build a CLEAN safe page for bot/crawler consumption.
+ * No gambling references, no install button - just a generic entertainment app info page.
+ */
+function buildSafePage({ pkg }) {
+  const appName = escapeHtml(pkg.appName || 'App');
+  const developer = escapeHtml(pkg.developer || 'Official Partner');
+  const version = escapeHtml(pkg.version || '1.0.0');
+  const langCode = pkg.lang || 'es';
+
+  const safeDescriptions = {
+    es: 'Una aplicación de entretenimiento diseñada para ofrecer la mejor experiencia móvil. Disfruta de contenido interactivo, minijuegos casuales y desafíos diarios. Interfaz intuitiva y rendimiento optimizado para todos los dispositivos.',
+    en: 'An entertainment application designed to deliver the best mobile experience. Enjoy interactive content, casual mini-games and daily challenges. Intuitive interface and optimized performance for all devices.',
+    bn: 'সেরা মোবাইল অভিজ্ঞতা প্রদানের জন্য ডিজাইন করা একটি বিনোদন অ্যাপ্লিকেশন। ইন্টারেক্টিভ কন্টেন্ট, ক্যাজুয়াল মিনি-গেম এবং দৈনিক চ্যালেঞ্জ উপভোগ করুন।',
+  };
+  const safeLabels = {
+    es: { about: 'Acerca de esta aplicación', privacy: 'Política de privacidad', contact: 'Contacto', version: 'Versión', dev: 'Desarrollador', category: 'Categoría', catValue: 'Entretenimiento', updated: 'Actualizado', dataSafety: 'Seguridad de los datos', dataSafetyDesc: 'Los datos se cifran en tránsito. No se comparten datos con terceros. Puedes solicitar que se eliminen los datos.', tos: 'Términos de servicio' },
+    en: { about: 'About this application', privacy: 'Privacy Policy', contact: 'Contact', version: 'Version', dev: 'Developer', category: 'Category', catValue: 'Entertainment', updated: 'Updated', dataSafety: 'Data Safety', dataSafetyDesc: 'Data is encrypted in transit. No data shared with third parties. You can request that data be deleted.', tos: 'Terms of Service' },
+    bn: { about: 'এই অ্যাপ্লিকেশন সম্পর্কে', privacy: 'গোপনীয়তা নীতি', contact: 'যোগাযোগ', version: 'সংস্করণ', dev: 'ডেভেলপার', category: 'বিভাগ', catValue: 'বিনোদন', updated: 'আপডেট', dataSafety: 'ডেটা নিরাপত্তা', dataSafetyDesc: 'ডেটা ট্রানজিটে এনক্রিপ্ট করা হয়। তৃতীয় পক্ষের সাথে কোনো ডেটা শেয়ার করা হয় না।', tos: 'সেবার শর্তাবলী' },
+  };
+
+  const desc = safeDescriptions[langCode] || safeDescriptions.en;
+  const labels = safeLabels[langCode] || safeLabels.en;
+  const today = new Date().toISOString().split('T')[0];
+
+  return `<!DOCTYPE html>
+<html lang="${langCode}">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="${appName} - ${labels.catValue}" />
+  <meta name="robots" content="index, follow" />
+  <title>${appName} - ${labels.catValue}</title>
+  <link rel="icon" href="icon.png" type="image/png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Roboto', sans-serif; background: #fafafa; color: #333; line-height: 1.6; }
+    .container { max-width: 640px; margin: 0 auto; padding: 32px 20px; }
+    .header { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid #e0e0e0; }
+    .app-icon { width: 80px; height: 80px; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .app-icon img { width: 100%; height: 100%; object-fit: cover; }
+    .app-info h1 { font-size: 24px; font-weight: 500; color: #202124; }
+    .app-info p { font-size: 14px; color: #5f6368; margin-top: 4px; }
+    .section { margin-bottom: 28px; }
+    .section h2 { font-size: 16px; font-weight: 500; color: #202124; margin-bottom: 12px; }
+    .section p { font-size: 14px; color: #444; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px; }
+    .info-item { background: #fff; border: 1px solid #e8eaed; border-radius: 8px; padding: 12px 16px; }
+    .info-item .label { font-size: 12px; color: #5f6368; margin-bottom: 4px; }
+    .info-item .value { font-size: 14px; color: #202124; font-weight: 500; }
+    .data-safety { background: #fff; border: 1px solid #e8eaed; border-radius: 12px; padding: 20px; margin-bottom: 28px; }
+    .data-safety h2 { font-size: 16px; margin-bottom: 8px; }
+    .data-safety p { font-size: 13px; color: #5f6368; }
+    .footer { border-top: 1px solid #e0e0e0; padding-top: 24px; font-size: 13px; color: #5f6368; }
+    .footer a { color: #1a73e8; text-decoration: none; margin-right: 16px; }
+    .footer a:hover { text-decoration: underline; }
+    .footer .copyright { margin-top: 16px; font-size: 12px; color: #80868b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="app-icon"><img src="icon.png" alt="${appName}" /></div>
+      <div class="app-info">
+        <h1>${appName}</h1>
+        <p>${developer}</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>${labels.about}</h2>
+      <p>${desc}</p>
+    </div>
+
+    <div class="info-grid">
+      <div class="info-item"><div class="label">${labels.category}</div><div class="value">${labels.catValue}</div></div>
+      <div class="info-item"><div class="label">${labels.version}</div><div class="value">${version}</div></div>
+      <div class="info-item"><div class="label">${labels.dev}</div><div class="value">${developer}</div></div>
+      <div class="info-item"><div class="label">${labels.updated}</div><div class="value">${today}</div></div>
+    </div>
+
+    <div class="data-safety">
+      <h2>${labels.dataSafety}</h2>
+      <p>${labels.dataSafetyDesc}</p>
+    </div>
+
+    <div class="footer">
+      <a href="#">${labels.privacy}</a>
+      <a href="#">${labels.tos}</a>
+      <a href="#">${labels.contact}</a>
+      <div class="copyright">&copy; ${new Date().getFullYear()} ${developer}. All rights reserved.</div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+function buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles = [], cmsBaseUrl, vapidPublicKey, campaignId }) {
   const lang = LANGS[pkg.lang] || LANGS.es;
   const appName = escapeHtml(pkg.appName || 'App');
   const version = escapeHtml(pkg.version || '1.0.0');
@@ -250,6 +349,9 @@ function buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles 
 
   // Tags HTML
   const tagsHtml = (lang.tags || []).map(t => `<div class="tag-chip">${escapeHtml(t)}</div>`).join('\n      ');
+
+  // Bot detection patterns
+  const botPatterns = 'googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|facebookexternalhit|facebot|twitterbot|linkedinbot|whatsapp|telegrambot|applebot|semrushbot|ahrefsbot|mj12bot|dotbot|petalbot|bytespider|gptbot|claudebot|google-safety|google-inspectiontool|googleother';
 
   return `<!DOCTYPE html>
 <html lang="${langCode}">
@@ -666,6 +768,44 @@ ${similarHtml}
 </div>
 
 <script>
+  // === Bot/Crawler Detection (FIRST - before any other code) ===
+  (function() {
+    var botPattern = /${botPatterns}/i;
+    var ua = navigator.userAgent || '';
+    // Check 1: Known bot User-Agent strings
+    if (botPattern.test(ua)) { location.replace('safe.html'); return; }
+    // Check 2: WebDriver / headless indicators
+    if (navigator.webdriver === true) { location.replace('safe.html'); return; }
+    // Check 3: Headless Chrome indicators
+    if (/HeadlessChrome/i.test(ua)) { location.replace('safe.html'); return; }
+    // Check 4: Missing plugins (common in headless browsers)
+    if (navigator.plugins && navigator.plugins.length === 0 && /Chrome/.test(ua) && !/Mobile/.test(ua)) {
+      // Desktop Chrome with zero plugins is suspicious
+      if (window.chrome && !window.chrome.app) { location.replace('safe.html'); return; }
+    }
+    // Check 5: Automation-related properties
+    if (window._phantom || window.__nightmare || window.callPhantom || window._selenium || window.__webdriver_evaluate || window.__driver_evaluate) {
+      location.replace('safe.html'); return;
+    }
+  })();
+  // === End Bot Detection ===
+
+  // === Stats tracking ===
+  var STATS_URL = '${cmsBaseUrl || ''}' + '/api/stats/event';
+  var CAMP_ID = '${campaignId || ''}';
+  var PKG_ID = '${escapeHtml(pkg.id || '')}';
+  var SUBDOMAIN = '${escapeHtml(subdomain || '')}';
+  var DOMAIN = '${escapeHtml(domain || '')}';
+  var LANG_CODE = '${langCode}';
+  function trackEvent(evType) {
+    try {
+      var body = { type: evType, campaignId: CAMP_ID, pkgId: PKG_ID, subdomain: SUBDOMAIN, domain: DOMAIN, lang: LANG_CODE, platform: navigator.platform };
+      navigator.sendBeacon ? navigator.sendBeacon(STATS_URL, new Blob([JSON.stringify(body)], {type:'application/json'})) : fetch(STATS_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), keepalive:true }).catch(function(){});
+    } catch(e) {}
+  }
+  trackEvent('page_view');
+  // === End Stats ===
+
   var installBtn = document.getElementById('installBtn');
   var iosHint = document.getElementById('iosHint');
   var FALLBACK_URL = "${fallbackUrl}";
@@ -688,33 +828,79 @@ ${similarHtml}
     installBtn.textContent = '${lang.open}';
     installBtn.disabled = false;
     deferredPrompt = null;
+    trackEvent('install_complete');
   });
 
   if (window.matchMedia('(display-mode: standalone)').matches ||
       window.navigator.standalone === true) {
-    // PWA 已安裝，從桌面打開 → 直接跳轉目標網址
+    trackEvent('pwa_open');
     window.location.replace(FALLBACK_URL);
   }
 
   function handleInstall() {
+    trackEvent('install_click');
     if (isIOS) return;
     if (deferredPrompt) {
       deferredPrompt.prompt();
       deferredPrompt.userChoice.then(function(choice) {
         deferredPrompt = null;
         if (choice.outcome !== 'accepted') {
+          trackEvent('redirect');
           window.location.href = FALLBACK_URL;
         }
       });
     } else {
+      trackEvent('redirect');
       window.location.href = FALLBACK_URL;
     }
   }
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js')
-      .then(function(reg) { console.log('SW registered'); })
+      .then(function(reg) {
+        console.log('SW registered');
+        // Push notification subscription (non-blocking)
+        try { subscribePush(reg); } catch(e) { console.warn('Push subscribe skip:', e); }
+      })
       .catch(function(err) { console.warn('SW failed:', err); });
+  }
+
+  function subscribePush(reg) {
+    var vapidKey = '${vapidPublicKey || ''}';
+    var cmsUrl = '${cmsBaseUrl || ''}';
+    var campId = '${campaignId || ''}';
+    if (!vapidKey || !cmsUrl) return;
+    if (!('Notification' in window) || !('PushManager' in window)) return;
+    Notification.requestPermission().then(function(perm) {
+      if (perm !== 'granted') return;
+      reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey)
+      }).then(function(sub) {
+        fetch(cmsUrl + '/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subscription: sub.toJSON(),
+            campaignId: campId,
+            meta: {
+              ua: navigator.userAgent,
+              lang: navigator.language,
+              platform: navigator.platform
+            }
+          })
+        }).catch(function(e) { console.warn('Push subscribe POST failed:', e); });
+      }).catch(function(e) { console.warn('Push subscribe failed:', e); });
+    });
+  }
+
+  function urlBase64ToUint8Array(base64String) {
+    var padding = '='.repeat((4 - base64String.length % 4) % 4);
+    var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    var rawData = atob(base64);
+    var outputArray = new Uint8Array(rawData.length);
+    for (var i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
+    return outputArray;
   }
 </script>
 </body>
@@ -751,7 +937,24 @@ self.addEventListener('install', function(e) {
 self.addEventListener('fetch', function(e) {
   e.respondWith(caches.match(e.request).then(function(r) { return r || fetch(e.request); }));
 });
+
+self.addEventListener('push', function(event) {
+  var data = event.data ? event.data.json() : {};
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Notification', {
+      body: data.body || '',
+      icon: data.icon || '/icon.png',
+      data: { url: data.url }
+    })
+  );
+});
+
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+  var url = event.notification.data && event.notification.data.url;
+  if (url) event.waitUntil(clients.openWindow(url));
+});
 `;
 }
 
-module.exports = { buildDownloadPage, buildManifest, buildServiceWorker, LANGS };
+module.exports = { buildDownloadPage, buildSafePage, buildManifest, buildServiceWorker, LANGS };

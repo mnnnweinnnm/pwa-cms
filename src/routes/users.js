@@ -1,6 +1,7 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { loadUsers, saveUsers, publicUser, hashPassword, requireAdmin } = require('../lib/auth-store');
+const audit = require('../services/audit-log');
 
 const router = express.Router();
 router.use(requireAdmin);
@@ -29,6 +30,7 @@ router.post('/', (req, res) => {
   };
   users.push(user);
   saveUsers(users);
+  audit.log('user.create', { user: req.user?.username, target: username, detail: { role }, ip: req.ip });
   res.status(201).json(publicUser(user));
 });
 
@@ -50,6 +52,7 @@ router.patch('/:id', (req, res) => {
   next.updatedAt = new Date().toISOString();
   users[idx] = next;
   saveUsers(users);
+  audit.log('user.update', { user: req.user?.username, target: next.username, detail: { role: next.role, active: next.active }, ip: req.ip });
   res.json(publicUser(next));
 });
 
@@ -60,6 +63,7 @@ router.delete('/:id', (req, res) => {
   if (idx === -1) return res.status(404).json({ error: 'Not found' });
   const [removed] = users.splice(idx, 1);
   saveUsers(users);
+  audit.log('user.delete', { user: req.user?.username, target: removed.username, ip: req.ip });
   res.json({ ok: true, id: removed.id });
 });
 
