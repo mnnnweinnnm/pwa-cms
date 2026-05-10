@@ -1,5 +1,5 @@
 /**
- * 下載頁 HTML 模板 - Google Play Store 風格(完整版)
+ * 下載頁 HTML 模板
  * 基於 pwa-test.xmx99juego.online 參考模板
  * 圖片使用相對路徑(icon.png, screenshot-N.ext),由 campaigns.js 複製到 staging dir
  */
@@ -367,7 +367,7 @@ function buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles 
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="description" content="${appName}" />
-  <title>${appName} - Apps en Google Play</title>
+  <title>${appName} - ¡Juega y Gana!</title>
 
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon.png" />
