@@ -243,7 +243,7 @@ app.get('/admin', requireAuth, (req, res) => {
     if (isAdmin) { document.getElementById('users-nav').style.display = ''; document.getElementById('push-nav').style.display = ''; document.getElementById('audit-nav').style.display = ''; }
 
     async function api(method, url, body) {
-      const opts = { method, headers: {} };
+      const opts = { method, headers: {}, credentials: 'include' };
       if (body && !(body instanceof FormData)) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
       else if (body) opts.body = body;
       const r = await fetch(url, opts);
