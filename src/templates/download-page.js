@@ -302,7 +302,7 @@ function buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles 
   const description = escapeHtml(pkg.description || '');
   const rating = pkg.rating || '4,7';
   const downloadCount = pkg.downloadCount || '1 M+';
-  const fallbackUrl = escapeHtml(targetUrl || 'https://www.pera57.pro');
+  const fallbackUrl = (targetUrl || 'https://www.pera57.pro').replace(/"/g, '%22');
   const langCode = pkg.lang || 'es';
 
   // Screenshots HTML - use relative paths (files copied to staging dir by campaigns.js)
