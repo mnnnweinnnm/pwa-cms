@@ -34,7 +34,7 @@ router.post('/check-all', async (req, res) => {
   try {
     const campaigns = loadCampaigns();
     const urls = campaigns
-      .filter(c => c.downloadUrl)
+      .filter(c => c.status === 'active' && c.downloadUrl)
       .map(c => c.downloadUrl);
     if (urls.length === 0) return res.json({ lastCheckAt: new Date().toISOString(), results: {}, message: 'No active campaigns' });
     const data = await checkUrls(urls);

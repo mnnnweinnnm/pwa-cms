@@ -33,14 +33,20 @@ router.post('/event', (req, res) => {
   res.json({ ok: true });
 });
 
-// AUTH — 後台查詢
-router.get('/', requireAuth, (req, res) => {
+// AUTH — 後台查詢（看板本身帶 cookie，故此處只攔截未登入的一般 AJAX 工具）
+router.get('/', (req, res) => {
+  // 如果真的未登入，回 JSON 而非 HTML，方便前端判斷
+  const user = req.user || (req.session && req.session.userId);
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
   const { from, to, pkgId, campaignId, type } = req.query;
   const result = queryStats({ from, to, pkgId, campaignId, type });
   res.json(result);
 });
 
-router.get('/range', requireAuth, (req, res) => {
+// AUTH
+router.get('/range', (req, res) => {
+  const user = req.user || (req.session && req.session.userId);
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
   res.json(getDateRange());
 });
 
