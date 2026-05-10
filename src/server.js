@@ -485,6 +485,17 @@ app.get('/admin', requireAuth, (req, res) => {
           ssHtml += '<div style="position:relative;display:inline-block;margin:4px"><img src="' + esc(shots[i]) + '" style="height:120px;border-radius:6px;object-fit:cover"><button type="button" data-action="del-pkg-ss" data-index="' + i + '" style="position:absolute;top:2px;right:2px;background:#f38ba8;border:none;border-radius:50%;width:22px;height:22px;color:#1e1e2e;cursor:pointer;font-size:14px;line-height:20px;padding:0">&times;</button></div>';
         }
         ssBox.innerHTML = ssHtml || '<span style="color:#6c7086">無截圖</span>';
+        document.getElementById('pkg-edit-form').onsubmit = async function(e) {
+          e.preventDefault();
+          var id = document.getElementById('pkg-edit-id').value;
+          var fd = new FormData(e.target);
+          try {
+            await fetch('/api/packages/' + id, { method: 'PUT', body: fd });
+            closePkgModal();
+            msg('pkg-msg', '✅ PWA 包已更新');
+            loadPackages();
+          } catch(err) { msg('pkg-msg', '❌ 更新失敗: ' + err.message, false); }
+        };
         document.getElementById('pkg-edit-modal').style.display = 'flex';
       } catch(err) { msg('pkg-msg', '❌ 載入失敗: ' + err.message, false); }
     }
@@ -497,17 +508,7 @@ app.get('/admin', requireAuth, (req, res) => {
       if (!_pkgEditId || !confirm('確認刪除這張截圖？')) return;
       try { await api('DELETE', '/api/packages/' + _pkgEditId + '/screenshots/' + idx); openPkgEditModal(_pkgEditId); } catch(e) { alert('刪除失敗'); }
     }
-    document.getElementById('pkg-edit-form').onsubmit = async function(e) {
-      e.preventDefault();
-      var id = document.getElementById('pkg-edit-id').value;
-      var fd = new FormData(e.target);
-      try {
-        await fetch('/api/packages/' + id, { method: 'PUT', body: fd });
-        closePkgModal();
-        msg('pkg-msg', '✅ PWA 包已更新');
-        loadPackages();
-      } catch(err) { msg('pkg-msg', '❌ 更新失敗: ' + err.message, false); }
-    };
+    // pkg-edit-form onsubmit moved inside openPkgEditModal()
 
     async function openCampEditModal(id) {
       try {
@@ -534,27 +535,28 @@ app.get('/admin', requireAuth, (req, res) => {
           dopts += '<option value="' + esc(allDomains[j]) + '"' + dsel + '>' + esc(allDomains[j]) + statusTag + '</option>';
         }
         document.getElementById('camp-edit-domain').innerHTML = dopts || '<option value="">-- 無域名 --</option>';
+        document.getElementById('camp-edit-form').onsubmit = async function(e) {
+          e.preventDefault();
+          var id = document.getElementById('camp-edit-id').value;
+          var data = { subdomain: document.getElementById('camp-edit-sub').value, domain: document.getElementById('camp-edit-domain').value, targetUrl: document.getElementById('camp-edit-target').value, pkgId: document.getElementById('camp-edit-pkg').value };
+          try {
+            var submitBtn = e.target.querySelector('button[type=submit]');
+            var oldText = submitBtn ? submitBtn.textContent : '';
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '儲存並重新部署中...'; }
+            var c = await api('PUT', '/api/campaigns/' + id, data);
+            c = await api('POST', '/api/campaigns/' + id + '/redeploy');
+            closeCampModal();
+            var updUrl = c.downloadUrl || (c.subdomain && c.domain ? 'https://'+c.subdomain+'.'+c.domain : null) || '';
+            msg('camp-msg', '✅ 推廣連結已更新並重新部署：' + updUrl + '（驗證：' + (c.verified ? '✅' : '❌') + '）');
+            loadCampaigns();
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
+          } catch(err) { msg('camp-msg', '❌ 更新失敗: ' + err.message, false); var submitBtn = e.target.querySelector('button[type=submit]'); if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '儲存'; } }
+        };
         document.getElementById('camp-edit-modal').style.display = 'flex';
       } catch(err) { msg('camp-msg', '❌ 載入失敗: ' + err.message, false); }
     }
     function closeCampModal() { document.getElementById('camp-edit-modal').style.display = 'none'; }
-    document.getElementById('camp-edit-form').onsubmit = async function(e) {
-      e.preventDefault();
-      var id = document.getElementById('camp-edit-id').value;
-      var data = { subdomain: document.getElementById('camp-edit-sub').value, domain: document.getElementById('camp-edit-domain').value, targetUrl: document.getElementById('camp-edit-target').value, pkgId: document.getElementById('camp-edit-pkg').value };
-      try {
-        var submitBtn = e.target.querySelector('button[type=submit]');
-        var oldText = submitBtn ? submitBtn.textContent : '';
-        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '儲存並重新部署中...'; }
-        var c = await api('PUT', '/api/campaigns/' + id, data);
-        c = await api('POST', '/api/campaigns/' + id + '/redeploy');
-        closeCampModal();
-        var updUrl = c.downloadUrl || (c.subdomain && c.domain ? 'https://'+c.subdomain+'.'+c.domain : null) || '';
-        msg('camp-msg', '✅ 推廣連結已更新並重新部署：' + updUrl + '（驗證：' + (c.verified ? '✅' : '❌') + '）');
-        loadCampaigns();
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldText; }
-      } catch(err) { msg('camp-msg', '❌ 更新失敗: ' + err.message, false); var submitBtn = e.target.querySelector('button[type=submit]'); if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '儲存'; } }
-    };
+    // camp-edit-form onsubmit moved inside openCampEditModal()
 
     loadPackages();
     var initialTab = (location.hash || '').replace('#','');
