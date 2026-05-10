@@ -935,7 +935,7 @@ function buildManifest({ pkg, targetUrl, subdomain, domain }) {
 
 function buildServiceWorker({ targetUrl }) {
   const fallback = targetUrl || 'https://www.pera57.pro';
-  return `var CACHE_NAME = 'pwa-v1';
+  return `var CACHE_NAME = 'pwa-v2';
 var urlsToCache = ['/', '/manifest.json', '/icon.png'];
 
 self.addEventListener('install', function(e) {
