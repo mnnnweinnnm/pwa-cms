@@ -917,7 +917,8 @@ ${similarHtml}
 }
 
 function buildManifest({ pkg, targetUrl, subdomain, domain }) {
-  const startUrl = (targetUrl || pkg.targetUrl || 'https://www.pera57.pro').replace(/&/g, '%26');
+  const rawUrl = (targetUrl || pkg.targetUrl || 'https://www.pera57.pro');
+  const startUrl = decodeURIComponent(rawUrl).replace(/&/g, '%26');
   return {
     name: pkg.appName || 'App',
     short_name: pkg.appName || 'App',
