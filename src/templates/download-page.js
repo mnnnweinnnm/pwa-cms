@@ -9,6 +9,8 @@
  * 模板合併時：brandData + langData（langData 優先）
  */
 
+const crypto = require('crypto');
+
 const LANGS = {
   es: {
     install: 'Instalar',
@@ -293,6 +295,30 @@ function buildSafePage({ pkg }) {
 </html>`;
 }
 
+function normalizeTargetUrl(url) {
+  return String(url || 'https://www.pera57.pro')
+    .trim()
+    .replace(/&amp;/g, '&')
+    .replace(/&#38;/g, '&');
+}
+
+function buildManifestStartUrl(url) {
+  const raw = normalizeTargetUrl(url);
+  let decoded = raw;
+  try { decoded = decodeURIComponent(raw); } catch (_) {}
+  // Manifest start_url is consumed by Chromium during install. Keep legacy/new
+  // campaigns consistent by preserving the whole tracking query as one value.
+  return decoded.replace(/&/g, '%26');
+}
+
+function jsString(value) {
+  return JSON.stringify(String(value || ''));
+}
+
+function cacheNameForTarget(url) {
+  return 'pwa-' + crypto.createHash('sha1').update(normalizeTargetUrl(url)).digest('hex').slice(0, 10);
+}
+
 function buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles = [], cmsBaseUrl, vapidPublicKey, campaignId }) {
   const lang = LANGS[pkg.lang] || LANGS.es;
   const appName = escapeHtml(pkg.appName || 'App');
@@ -302,7 +328,7 @@ function buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles 
   const description = escapeHtml(pkg.description || '');
   const rating = pkg.rating || '4,7';
   const downloadCount = pkg.downloadCount || '1 M+';
-  const fallbackUrl = (targetUrl || 'https://www.pera57.pro').replace(/"/g, '%22');
+  const fallbackUrl = normalizeTargetUrl(targetUrl);
   const langCode = pkg.lang || 'es';
 
   // Screenshots HTML - use relative paths (files copied to staging dir by campaigns.js)
@@ -817,7 +843,7 @@ ${similarHtml}
 
   var installBtn = document.getElementById('installBtn');
   var iosHint = document.getElementById('iosHint');
-  var FALLBACK_URL = "${fallbackUrl}";
+  var FALLBACK_URL = ${jsString(fallbackUrl)};
 
   var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
@@ -917,8 +943,7 @@ ${similarHtml}
 }
 
 function buildManifest({ pkg, targetUrl, subdomain, domain }) {
-  const rawUrl = (targetUrl || pkg.targetUrl || 'https://www.pera57.pro');
-  const startUrl = decodeURIComponent(rawUrl).replace(/&/g, '%26');
+  const startUrl = buildManifestStartUrl(targetUrl || pkg.targetUrl);
   return {
     name: pkg.appName || 'App',
     short_name: pkg.appName || 'App',
@@ -936,8 +961,8 @@ function buildManifest({ pkg, targetUrl, subdomain, domain }) {
 }
 
 function buildServiceWorker({ targetUrl }) {
-  const fallback = targetUrl || 'https://www.pera57.pro';
-  return `var CACHE_NAME = 'pwa-v2';
+  const cacheName = cacheNameForTarget(targetUrl);
+  return `var CACHE_NAME = '${cacheName}';
 var urlsToCache = ['/', '/manifest.json', '/icon.png'];
 
 self.addEventListener('install', function(e) {
