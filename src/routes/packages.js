@@ -13,6 +13,7 @@ const fs = require('fs');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const audit = require('../services/audit-log');
+const { requireAdmin } = require('../lib/auth-store');
 
 // Storage
 const UPLOAD_BASE = path.join(__dirname, '../../uploads');
@@ -60,7 +61,7 @@ router.get('/:id', (req, res) => {
 });
 
 // POST create
-router.post('/', upload.fields([{ name: 'icon', maxCount: 1 }, { name: 'screenshots', maxCount: 10 }]), (req, res) => {
+router.post('/', requireAdmin, upload.fields([{ name: 'icon', maxCount: 1 }, { name: 'screenshots', maxCount: 10 }]), (req, res) => {
   const pkgs = loadPackages();
   const { appName, lang, developer, description, version, downloadCount, rating } = req.body;
 
@@ -89,7 +90,7 @@ createdAt: new Date().toISOString(),
 });
 
 // PUT update
-router.put('/:id', upload.fields([{ name: 'icon', maxCount: 1 }, { name: 'screenshots', maxCount: 10 }]), (req, res) => {
+router.put('/:id', requireAdmin, upload.fields([{ name: 'icon', maxCount: 1 }, { name: 'screenshots', maxCount: 10 }]), (req, res) => {
   const pkgs = loadPackages();
   const idx = pkgs.findIndex(p => p.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Not found' });
@@ -121,7 +122,7 @@ router.put('/:id', upload.fields([{ name: 'icon', maxCount: 1 }, { name: 'screen
 });
 
 // DELETE
-router.delete('/:id', (req, res) => {
+router.delete('/:id', requireAdmin, (req, res) => {
   const pkgs = loadPackages();
   const idx = pkgs.findIndex(p => p.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Not found' });
@@ -135,7 +136,7 @@ router.delete('/:id', (req, res) => {
 module.exports = router;
 
 // DELETE single screenshot
-router.delete('/:id/screenshots/:index', (req, res) => {
+router.delete('/:id/screenshots/:index', requireAdmin, (req, res) => {
   const pkgs = loadPackages();
   const idx = pkgs.findIndex(p => p.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Not found' });
@@ -150,7 +151,7 @@ router.delete('/:id/screenshots/:index', (req, res) => {
 });
 
 // DELETE icon
-router.delete('/:id/icon', (req, res) => {
+router.delete('/:id/icon', requireAdmin, (req, res) => {
   const pkgs = loadPackages();
   const idx = pkgs.findIndex(p => p.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Not found' });

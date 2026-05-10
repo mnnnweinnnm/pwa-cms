@@ -209,13 +209,14 @@ router.put('/:id', requireAdmin, async (req, res) => {
   const idx = campaigns.findIndex(c => c.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Not found' });
   const { subdomain, domain, targetUrl, pkgId } = req.body;
-  if (!subdomain || !domain || !targetUrl) {
-    return res.status(400).json({ error: 'subdomain, domain, targetUrl 必填' });
+  if (!subdomain || !domain || !targetUrl || !pkgId) {
+    return res.status(400).json({ error: 'subdomain, domain, targetUrl, pkgId 皆為必填' });
   }
   // Check domain exists and is active
-  const domains = loadDomainsData();
-  const dom = domains.find(d => d.domain === domain && d.status === 'active');
-  if (!dom) return res.status(400).json({ error: '域名不存在或未啟用' });
+  const domainRecords = loadDomainRecords();
+  if (!domainRecords.some(d => d.domain === domain && d.status === 'active')) {
+    return res.status(400).json({ error: '域名不存在或未啟用' });
+  }
   // Check duplicate subdomain+domain (excluding self)
   if (campaigns.some(c => c.id !== req.params.id && c.subdomain === subdomain && c.domain === domain)) {
     return res.status(409).json({ error: '此域名+子網域組合已存在' });
@@ -225,21 +226,23 @@ router.put('/:id', requireAdmin, async (req, res) => {
   const pkg = packages.find(p => p.id === pkgId);
   if (!pkg) return res.status(400).json({ error: 'PWA 包不存在' });
   const old = campaigns[idx];
+  const urlChanged = old.subdomain !== subdomain || old.domain !== domain || old.targetUrl !== targetUrl;
   campaigns[idx] = {
     ...old,
     subdomain, domain, targetUrl, pkgId,
     pkgName: pkg.appName,
     pkgLang: pkg.lang,
-    deployed: old.deployed && (old.subdomain !== subdomain || old.domain !== domain || old.targetUrl !== targetUrl) ? false : old.deployed,
-    verified: old.verified && (old.subdomain === subdomain && old.domain === domain) ? old.verified : false,
+    // Any change to subdomain/domain/targetUrl invalidates deploy and verification
+    deployed: urlChanged ? false : old.deployed,
+    verified: urlChanged ? false : old.verified,
     updatedAt: new Date().toISOString()
   };
-  saveCampaignsData(campaigns);
-  auditLog(req.user.username, 'update', 'campaign', campaigns[idx].subdomain + '.' + campaigns[idx].domain, { before: old, after: campaigns[idx] });
+  saveCampaigns(campaigns);
+  audit.log('campaign.update', { user: req.user?.username, target: campaigns[idx].id, detail: { subdomain, domain, pkgName: pkg.appName, targetUrl, urlChanged }, ip: req.ip });
   res.json(campaigns[idx]);
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAdmin, async (req, res) => {
   const campaigns = loadCampaigns();
   const idx = campaigns.findIndex(c => c.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Not found' });

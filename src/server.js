@@ -260,10 +260,10 @@ app.get('/admin', requireAuth, (req, res) => {
     document.getElementById('pkg-form').onsubmit=async(e)=>{e.preventDefault();try{await api('POST','/api/packages',new FormData(e.target));msg('pkg-msg','✅ PWA 包建立成功');e.target.reset();loadPackages();}catch(err){msg('pkg-msg','❌ 建立失敗：'+err.message,false);}};
     async function delPkg(id){ if(!confirm('確認刪除？'))return; await api('DELETE','/api/packages/'+id); loadPackages(); }
 
-    async function loadCampaigns(){ const {campaigns}=await api('GET','/api/campaigns'); document.getElementById('camp-table-body').innerHTML=campaigns.map(c=>'<tr><td>'+esc(c.subdomain)+'</td><td>'+esc(c.pkgName)+'</td><td><span class="badge badge-'+esc(c.pkgLang)+'">'+esc(String(c.pkgLang).toUpperCase())+'</span></td><td>'+(c.downloadUrl?'<div class="link-box">'+esc(c.downloadUrl)+'</div>':'-')+'</td><td>'+(c.verified?'<span class="badge badge-verified">已驗證</span>':'<span class="badge badge-pending">待驗證</span>')+'</td><td><button class="btn btn-muted btn-sm" data-action="edit-camp" data-id="'+esc(c.id)+'">編輯</button> <button class="btn btn-muted btn-sm" data-action="redeploy-camp" data-id="'+esc(c.id)+'">重新部署</button> <button class="btn btn-muted btn-sm" data-action="verify-camp" data-id="'+esc(c.id)+'">驗證</button> <button class="btn btn-danger btn-sm" data-action="del-camp" data-id="'+esc(c.id)+'">刪除</button></td></tr>').join(''); }
+    async function loadCampaigns(){ const {campaigns}=await api('GET','/api/campaigns'); document.getElementById('camp-table-body').innerHTML=campaigns.map(c=>'<tr><td>'+esc(c.subdomain)+'.'+esc(c.domain||'')+'</td><td>'+esc(c.pkgName||'—')+'</td><td><span class="badge badge-'+esc(c.pkgLang)+'">'+esc(String(c.pkgLang||'es').toUpperCase())+'</span></td><td>'+(c.downloadUrl?'<a href="'+esc(c.downloadUrl)+'" target="_blank" class="link-box" style="color:#89b4fa">'+esc(c.downloadUrl)+'</a>':'<span class="hint">未部署</span>')+'</td><td>'+(c.deployed?(c.verified?'<span class="badge badge-verified">✅ 已驗證</span>':'<span class="badge badge-pending">⚠️ 待驗證</span>'):'<span class="hint">未部署</span>')+'</td><td><button class="btn btn-muted btn-sm" data-action="edit-camp" data-id="'+esc(c.id)+'">編輯</button> <button class="btn btn-muted btn-sm" data-action="redeploy-camp" data-id="'+esc(c.id)+'">重新部署</button> <button class="btn btn-muted btn-sm" data-action="verify-camp" data-id="'+esc(c.id)+'">驗證</button> <button class="btn btn-danger btn-sm" data-action="del-camp" data-id="'+esc(c.id)+'">刪除</button></td></tr>').join(''); }
     async function loadPkgOptions(){ const pkgs=await api('GET','/api/packages'); document.getElementById('camp-pkg-select').innerHTML='<option value="">-- 選擇包 --</option>'+pkgs.map(p=>'<option value="'+p.id+'">'+esc(p.appName)+' ('+esc(String(p.lang).toUpperCase())+')</option>').join(''); const {activeDomains}=await api('GET','/api/campaigns/domains'); document.getElementById('camp-domain-select').innerHTML='<option value="">-- 選擇域名 --</option>'+activeDomains.map(d=>'<option value="'+esc(d)+'">'+esc(d)+'</option>').join(''); }
-    document.getElementById('camp-form').onsubmit=async(e)=>{e.preventDefault();const btn=e.target.querySelector('button[type=submit]');btn.disabled=true;btn.textContent='建立中...';try{const r=await api('POST','/api/campaigns',Object.fromEntries(new FormData(e.target)));msg('camp-msg','✅ 建立成功！下載頁：'+r.downloadUrl);e.target.reset();loadCampaigns();}catch(err){msg('camp-msg','❌ 建立失敗：'+err.message,false);}finally{btn.disabled=false;btn.textContent='建立連結';}};
-    async function verifyCamp(id){ const btn=document.querySelector('[data-action="verify-camp"][data-id="'+id+'"]'); const orig=btn?btn.textContent:''; if(btn){btn.disabled=true;btn.textContent='驗證中...';}try{await api('POST','/api/campaigns/'+id+'/verify');loadCampaigns();}finally{if(btn){btn.disabled=false;btn.textContent=orig;}}}
+    document.getElementById('camp-form').onsubmit=async(e)=>{e.preventDefault();const btn=e.target.querySelector('button[type=submit]');btn.disabled=true;btn.textContent='建立中...';try{const r=await api('POST','/api/campaigns',Object.fromEntries(new FormData(e.target)));var url = r.downloadUrl || (r.subdomain && r.domain ? 'https://'+r.subdomain+'.'+r.domain : null) || '(未部署)'; msg('camp-msg','✅ 建立成功！🎯 <a href="'+url+'" target="_blank" style="color:#89b4fa">'+url+'</a> (驗證: '+(r.verified?'✅':'❌')+')'); e.target.reset(); loadCampaigns();}catch(err){msg('camp-msg','❌ 建立失敗：'+err.message,false);}finally{btn.disabled=false;btn.textContent='建立連結';}};
+    async function verifyCamp(id){ const btn=document.querySelector('[data-action="verify-camp"][data-id="'+id+'"]'); const orig=btn?btn.textContent:''; if(btn){btn.disabled=true;btn.textContent='驗證中...';}try{var r=await api('POST','/api/campaigns/'+id+'/verify'); msg('camp-msg',r.verified?'🔍 DNS 驗證通過（HTTP 200）':'🔍 驗證失敗（'+r.verifyResult?.message+'），請確認 NS 已正確指向');loadCampaigns();}catch(err){msg('camp-msg','❌ 驗證失敗: '+err.message,false);}finally{if(btn){btn.disabled=false;btn.textContent=orig;}}}
     async function delCamp(id){ if(!confirm('確認刪除？會一併移除下載頁'))return; await api('DELETE','/api/campaigns/'+id); loadCampaigns(); }
 
     async function loadDomains(){ const {domains,activeDomains}=await api('GET','/api/campaigns/domains'); document.getElementById('active-domain-list').innerHTML=activeDomains.map(d=>'<span class="domain-tag">'+esc(d)+'</span>').join('')||'<span class="hint">尚無已啟用域名</span>'; document.getElementById('domain-table-body').innerHTML=domains.map(d=>'<tr><td>'+esc(d.domain)+'</td><td><span class="badge badge-'+esc(d.status)+'">'+esc(d.status)+'</span></td><td>'+esc(d.notes||'')+'</td><td>'+(isAdmin?domainActions(d):'<span class="hint">僅管理員可修改</span>')+'</td></tr>').join(''); }
@@ -373,7 +373,7 @@ app.get('/admin', requireAuth, (req, res) => {
       try {
         msg('camp-msg', '⏳ 部署中...');
         var r = await api('POST', '/api/campaigns/' + id + '/redeploy');
-        msg('camp-msg', r.deployed ? '✅ 部署成功' + (r.verified ? '（已驗證）' : '（未驗證）') : '❌ 部署失敗');
+        var durl = r.downloadUrl || (r.subdomain && r.domain ? 'https://'+r.subdomain+'.'+r.domain : null) || ''; msg('camp-msg', r.deployed ? '✅ 部署成功' + (durl ? ' <a href="'+durl+'" target="_blank" style="color:#89b4fa">'+durl+'</a>' : '') + (r.verified ? '<br>🔍 DNS 驗證：✅ 已解析' : '<br>🔍 DNS 驗證：❌ 未解析（需手動檢查 NS）') : '❌ 部署失敗：'+(err.message||''));
         loadCampaigns();
       } catch(err) { msg('camp-msg', '❌ 部署失敗: ' + err.message, false); }
     }
@@ -500,6 +500,7 @@ app.get('/admin', requireAuth, (req, res) => {
         document.getElementById('camp-edit-id').value = c.id;
         document.getElementById('camp-edit-sub').value = c.subdomain || '';
         document.getElementById('camp-edit-target').value = c.targetUrl || '';
+        // Populate pkg select
         var pkgs = await api('GET', '/api/packages');
         var opts = '';
         for (var i = 0; i < pkgs.length; i++) {
@@ -507,13 +508,17 @@ app.get('/admin', requireAuth, (req, res) => {
           opts += '<option value="' + esc(pkgs[i].id) + '"' + sel + '>' + esc(pkgs[i].appName) + ' (' + String(pkgs[i].lang).toUpperCase() + ')</option>';
         }
         document.getElementById('camp-edit-pkg').innerHTML = opts;
+        // Populate domain select - use all domains (active + pending + disabled)
         var dd = await api('GET', '/api/campaigns/domains');
         var dopts = '';
-        for (var j = 0; j < dd.activeDomains.length; j++) {
-          var dsel = dd.activeDomains[j] === c.domain ? ' selected' : '';
-          dopts += '<option value="' + esc(dd.activeDomains[j]) + '"' + dsel + '>' + esc(dd.activeDomains[j]) + '</option>';
+        var allDomains = (dd.domains || []).map(function(d){ return d.domain; });
+        for (var j = 0; j < allDomains.length; j++) {
+          var dsel = allDomains[j] === c.domain ? ' selected' : '';
+          var domRec = (dd.domains||[]).find(function(x){ return x.domain === allDomains[j]; });
+          var statusTag = domRec && domRec.status !== 'active' ? ' ['+domRec.status+']' : '';
+          dopts += '<option value="' + esc(allDomains[j]) + '"' + dsel + '>' + esc(allDomains[j]) + statusTag + '</option>';
         }
-        document.getElementById('camp-edit-domain').innerHTML = dopts;
+        document.getElementById('camp-edit-domain').innerHTML = dopts || '<option value="">-- 無域名 --</option>';
         document.getElementById('camp-edit-modal').style.display = 'flex';
       } catch(err) { msg('camp-msg', '❌ 載入失敗: ' + err.message, false); }
     }
@@ -525,7 +530,7 @@ app.get('/admin', requireAuth, (req, res) => {
       try {
         await api('PUT', '/api/campaigns/' + id, data);
         closeCampModal();
-        msg('camp-msg', '✅ 推廣連結已更新');
+        var updUrl = c.downloadUrl || (c.subdomain && c.domain ? 'https://'+c.subdomain+'.'+c.domain : null) || ''; msg('camp-msg', '✅ 推廣連結已更新' + (updUrl ? ' 🎯 <a href="'+updUrl+'" target="_blank" style="color:#89b4fa">'+updUrl+'</a>' : ''));
         loadCampaigns();
       } catch(err) { msg('camp-msg', '❌ 更新失敗: ' + err.message, false); }
     };
