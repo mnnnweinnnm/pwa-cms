@@ -1,75 +1,63 @@
 /**
- * 部署服務：將生成的下載頁 rsync 到 VPS1
+ * 部署服務：將生成的下載頁寫到本機 VPS2
+ *
+ * PWA CMS 目前跑在 VPS2（174.138.26.149），下載頁也統一放 VPS2：
+ *   /var/www/pwa-downloads/{subdomain}/
+ *
+ * 不再透過 SFTP 部署到 VPS1，避免 CMS / 前端跨機器造成 DNS、Caddy、驗證不同步。
  */
 const fs = require('fs');
 const path = require('path');
-const Client = require('ssh2-sftp-client');
 
-const VPS1_HOST = '128.199.249.195';
-const VPS1_USER = 'root';
-const VPS1_KEY = process.env.VPS1_SSH_KEY || process.env.HOME + '/.ssh/id_ed25519';
-const REMOTE_BASE = '/var/www/pwa-downloads';
+const DEPLOY_BASE = process.env.PWA_DOWNLOAD_BASE || '/var/www/pwa-downloads';
+
+function ensureReadable(dir) {
+  if (!fs.existsSync(dir)) return;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      fs.chmodSync(fullPath, 0o755);
+      ensureReadable(fullPath);
+    } else {
+      fs.chmodSync(fullPath, 0o644);
+    }
+  }
+  fs.chmodSync(dir, 0o755);
+}
 
 async function deployPage(subdomain, localDir) {
-  const sftp = new Client();
   try {
-    await sftp.connect({
-      host: VPS1_HOST,
-      username: VPS1_USER,
-      privateKey: fs.readFileSync(VPS1_KEY),
-    });
+    const targetDir = path.join(DEPLOY_BASE, subdomain);
+    fs.mkdirSync(DEPLOY_BASE, { recursive: true });
+    fs.rmSync(targetDir, { recursive: true, force: true });
+    fs.mkdirSync(targetDir, { recursive: true });
 
-    const remoteDir = `${REMOTE_BASE}/${subdomain}`;
-    
-    // 確保 remote 目錄存在
-    try {
-      await sftp.mkdir(remoteDir, true);
-    } catch (e) {
-      // 可能已存在，忽略
-    }
-
-    // 上傳所有檔案
     const files = fs.readdirSync(localDir);
     for (const file of files) {
       const localPath = path.join(localDir, file);
-      const remotePath = `${remoteDir}/${file}`;
-      if (fs.statSync(localPath).isDirectory()) continue;
-      await sftp.put(localPath, remotePath);
-      console.log(`Uploaded: ${remotePath}`);
+      const targetPath = path.join(targetDir, file);
+      fs.cpSync(localPath, targetPath, { recursive: true });
+      console.log(`Copied: ${targetPath}`);
     }
 
-    console.log(`✅ Deploy complete: ${subdomain} -> ${remoteDir}`);
+    ensureReadable(targetDir);
+    console.log(`✅ Deploy complete: ${subdomain} -> ${targetDir}`);
     return true;
   } catch (err) {
     console.error(`❌ Deploy failed: ${err.message}`);
     throw err;
-  } finally {
-    sftp.end();
   }
 }
 
 async function removePage(subdomain) {
-  const sftp = new Client();
   try {
-    await sftp.connect({
-      host: VPS1_HOST,
-      username: VPS1_USER,
-      privateKey: fs.readFileSync(VPS1_KEY),
-    });
-
-    const remoteDir = `${REMOTE_BASE}/${subdomain}`;
-    try {
-      await sftp.rmdir(remoteDir, true);
-      console.log(`✅ Removed: ${remoteDir}`);
-    } catch (e) {
-      console.log(`Note: ${remoteDir} removal: ${e.message}`);
-    }
+    const targetDir = path.join(DEPLOY_BASE, subdomain);
+    fs.rmSync(targetDir, { recursive: true, force: true });
+    console.log(`✅ Removed: ${targetDir}`);
     return true;
   } catch (err) {
     console.error(`❌ Remove failed: ${err.message}`);
     throw err;
-  } finally {
-    sftp.end();
   }
 }
 
