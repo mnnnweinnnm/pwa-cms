@@ -558,7 +558,7 @@ app.get('/admin', requireAuth, (req, res) => {
 
     loadPackages();
     var initialTab = (location.hash || '').replace('#','');
-    if(['campaigns','domains','health','users','push','stats','audit'].includes(initialTab)) showTab(initialTab, document.querySelector('[data-tab="'+initialTab+'"]'));
+    if(initialTab && document.getElementById('tab-'+initialTab)) showTab(initialTab, document.querySelector('[data-tab="'+initialTab+'"]'));
   </script>
 
   <div id="pkg-edit-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center">

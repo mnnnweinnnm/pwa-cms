@@ -44,10 +44,18 @@ router.post('/check-all', async (req, res) => {
   }
 });
 
-// GET /api/health/status — get last check results
+// GET /api/health/status — get last check results (filtered to active campaigns only)
 router.get('/status', (req, res) => {
   const data = getLastResults();
-  res.json(data);
+  const campaigns = loadCampaigns();
+  const activeUrls = new Set(
+    campaigns.filter(c => c.deployed === true && c.downloadUrl).map(c => c.downloadUrl)
+  );
+  const filtered = {};
+  for (const [url, result] of Object.entries(data.results || {})) {
+    if (activeUrls.has(url)) filtered[url] = result;
+  }
+  res.json({ ...data, results: filtered });
 });
 
 module.exports = router;
