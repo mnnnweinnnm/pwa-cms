@@ -808,8 +808,9 @@ ${similarHtml}
   function trackEvent(evType) {
     try {
       var body = { type: evType, campaignId: CAMP_ID, pkgId: PKG_ID, subdomain: SUBDOMAIN, domain: DOMAIN, lang: LANG_CODE, platform: navigator.platform };
-      navigator.sendBeacon ? navigator.sendBeacon(STATS_URL, new Blob([JSON.stringify(body)], {type:'application/json'})) : fetch(STATS_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), keepalive:true }).catch(function(){});
-    } catch(e) {}
+      var ok = navigator.sendBeacon ? navigator.sendBeacon(STATS_URL, new Blob([JSON.stringify(body)], {type:'application/json'})) : fetch(STATS_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), keepalive:true }).catch(function(){});
+      console.log('[Stats] ' + evType + ' → ' + (ok !== false ? '✅ sent' : '❌ blocked'));
+    } catch(e) { console.log('[Stats] ' + evType + ' → ❌ error: ' + e.message); }
   }
   trackEvent('page_view');
   // === End Stats ===
