@@ -9,6 +9,15 @@ const router = express.Router();
 const { recordEvent, queryStats, getDateRange } = require('../services/stats-service');
 const { requireAuth } = require('../lib/auth-store');
 
+// Allow cross-origin from any PWA download page
+router.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
+
 // PUBLIC — 下載頁埋的 JS 打回來
 router.post('/event', (req, res) => {
   const { type, campaignId, pkgId, subdomain, domain, lang, platform } = req.body;
@@ -20,6 +29,7 @@ router.post('/event', (req, res) => {
   const ip = req.ip || req.connection?.remoteAddress || '';
   const referer = req.headers['referer'] || '';
   recordEvent(type, { campaignId, pkgId, subdomain, domain, lang, platform, ua, ip, referer });
+  res.header('Access-Control-Allow-Origin', '*');
   res.json({ ok: true });
 });
 
