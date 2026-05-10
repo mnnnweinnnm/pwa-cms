@@ -7,7 +7,7 @@
 const express = require('express');
 const router = express.Router();
 const { recordEvent, queryStats, getDateRange } = require('../services/stats-service');
-const { requireAuth } = require('../lib/auth-store');
+const { getRequestUser } = require('../lib/auth-store');
 
 // Allow cross-origin from any PWA download page
 router.use((req, res, next) => {
@@ -35,8 +35,9 @@ router.post('/event', (req, res) => {
 
 // AUTH — 後台查詢（看板本身帶 cookie，故此處只攔截未登入的一般 AJAX 工具）
 router.get('/', (req, res) => {
-  // 如果真的未登入，回 JSON 而非 HTML，方便前端判斷
-  const user = req.user || (req.session && req.session.userId);
+  // /api/stats 不能掛 router-level requireAuth，否則公開的 POST /event 會被擋。
+  // 這裡用 pwa_cms_session cookie 直接查登入者。
+  const user = getRequestUser(req);
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
   const { from, to, pkgId, campaignId, type } = req.query;
   const result = queryStats({ from, to, pkgId, campaignId, type });
@@ -45,7 +46,7 @@ router.get('/', (req, res) => {
 
 // AUTH
 router.get('/range', (req, res) => {
-  const user = req.user || (req.session && req.session.userId);
+  const user = getRequestUser(req);
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
   res.json(getDateRange());
 });
