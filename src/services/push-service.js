@@ -7,6 +7,7 @@ const path = require('path');
 const fs = require('fs');
 
 const SUBS_FILE = path.join(__dirname, '../../data/push-subscriptions.json');
+const HISTORY_FILE = path.join(__dirname, '../../data/push-history.json');
 const LOCK_FILE = SUBS_FILE + '.lock';
 
 // Configure VAPID
@@ -163,6 +164,22 @@ async function sendBulk({ campaignId, title, body, url, icon }) {
   acquireLock();
   try { saveSubscriptions(subs); } finally { releaseLock(); }
 
+  // Save push history record
+  const historyRecord = {
+    id: require('crypto').randomUUID(),
+    type: 'manual',
+    campaignId: campaignId || null,
+    title,
+    body,
+    url: url || null,
+    icon: icon || null,
+    sentAt: new Date().toISOString(),
+    sent: results.sent,
+    failed: results.failed,
+    total: targets.length,
+  };
+  appendHistory(historyRecord);
+
   return results;
 }
 
@@ -252,6 +269,23 @@ async function processRecalls() {
   return results;
 }
 
+function appendHistory(record) {
+  let history = [];
+  if (fs.existsSync(HISTORY_FILE)) {
+    try { history = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8')); } catch (_) {}
+  }
+  history.unshift(record); // newest first
+  // Keep last 200 records
+  if (history.length > 200) history = history.slice(0, 200);
+  fs.mkdirSync(path.dirname(HISTORY_FILE), { recursive: true });
+  fs.writeFileSync(HISTORY_FILE, JSON.stringify(history, null, 2));
+}
+
+function getHistory() {
+  if (!fs.existsSync(HISTORY_FILE)) return [];
+  try { return JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8')); } catch (_) { return []; }
+}
+
 function cleanupExpired() {
   return withLock((subs) => {
     const before = subs.length;
@@ -268,5 +302,7 @@ module.exports = {
   sendBulk,
   processRecalls,
   cleanupExpired,
+  getHistory,
+  appendHistory,
   VAPID_PUBLIC_KEY,
 };

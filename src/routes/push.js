@@ -2,7 +2,7 @@
  * Push Notification Routes
  * PUBLIC:  POST /api/push/subscribe, POST /api/push/unsubscribe
  * AUTH:    GET  /api/push/stats
- * ADMIN:   POST /api/push/send, POST /api/push/recall
+ * ADMIN:   POST /api/push/send, POST /api/push/recall, GET /api/push/history
  */
 const express = require('express');
 const router = express.Router();
@@ -71,6 +71,17 @@ router.post('/send', requireAuth, requireAdmin, async (req, res) => {
     res.json({ ok: true, ...results });
   } catch (err) {
     console.error('Push send error:', err.message);
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+// ADMIN - Push history
+router.get('/history', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const history = pushService.getHistory();
+    res.json({ history });
+  } catch (err) {
+    console.error('Push history error:', err.message);
     res.status(500).json({ error: 'Internal error' });
   }
 });

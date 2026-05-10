@@ -199,6 +199,9 @@ app.get('/admin', requireAuth, (req, res) => {
         <button class="btn btn-muted" onclick="triggerRecall()">手動觸發 Recall 檢查</button>
         <div id="recall-msg"></div>
       </div>
+      <div class="card"><div class="card-title">📋 發送記錄</div>
+        <div id="push-history"><p class="hint">載入中...</p></div>
+      </div>
     </div>
 
     <div id="tab-stats" class="tab-content" style="display:none">
@@ -250,7 +253,7 @@ app.get('/admin', requireAuth, (req, res) => {
     function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
     function msg(id, text, ok=true) { const el=document.getElementById(id); if(!el) return; el.className='msg '+(ok?'msg-success':'msg-error'); el.textContent=text; }
     async function logout(){ await api('POST','/api/auth/logout'); location.href='/login'; }
-    function showTab(name, el) { document.querySelectorAll('.tab-content').forEach(x => x.style.display='none'); document.getElementById('tab-'+name).style.display='block'; document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('active')); if(el) el.classList.add('active'); if(name==='packages') loadPackages(); if(name==='campaigns'){loadCampaigns(); loadPkgOptions();} if(name==='domains') loadDomains(); if(name==='health') loadHealthStatus(); if(name==='users') loadUsers(); if(name==='push') loadPushStats(); if(name==='stats') loadStats(); if(name==='audit') loadAudit(); }
+    function showTab(name, el) { document.querySelectorAll('.tab-content').forEach(x => x.style.display='none'); document.getElementById('tab-'+name).style.display='block'; document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('active')); if(el) el.classList.add('active'); if(name==='packages') loadPackages(); if(name==='campaigns'){loadCampaigns(); loadPkgOptions();} if(name==='domains') loadDomains(); if(name==='health') loadHealthStatus(); if(name==='users') loadUsers(); if(name==='push'){loadPushStats();loadPushHistory();} if(name==='stats') loadStats(); if(name==='audit') loadAudit(); }
 
     async function loadPackages(){ const pkgs=await api('GET','/api/packages'); document.querySelector('#pkg-table tbody').innerHTML=pkgs.map(p=>'<tr><td>'+esc(p.appName)+'</td><td><span class="badge badge-'+esc(p.lang)+'">'+esc(String(p.lang).toUpperCase())+'</span></td><td>v'+esc(p.version)+'</td><td>'+((p.screenshots||[]).length)+' 張截圖</td><td><button class="btn btn-muted btn-sm" data-action="edit-pkg" data-id="'+esc(p.id)+'">編輯</button> <button class="btn btn-danger btn-sm" data-action="del-pkg" data-id="'+esc(p.id)+'">刪除</button></td></tr>').join(''); }
     document.getElementById('pkg-form').onsubmit=async(e)=>{e.preventDefault();try{await api('POST','/api/packages',new FormData(e.target));msg('pkg-msg','✅ PWA 包建立成功');e.target.reset();loadPackages();}catch(err){msg('pkg-msg','❌ 建立失敗：'+err.message,false);}};
@@ -321,6 +324,27 @@ app.get('/admin', requireAuth, (req, res) => {
         msg('recall-msg', '✅ Recall 完成: 24h='+r['24h_sent']+' 48h='+r['48h_sent']+' failed='+r.failed);
         loadPushStats();
       } catch(err) { msg('recall-msg', '❌ '+err.message, false); }
+    }
+    async function loadPushHistory(){
+      try {
+        const {history} = await api('GET','/api/push/history');
+        if (!history || history.length === 0) {
+          document.getElementById('push-history').innerHTML = '<p class="hint">尚無發送記錄</p>';
+          return;
+        }
+        var campMap = {};
+        try { const {campaigns} = await api('GET','/api/campaigns'); campaigns.forEach(function(c){ campMap[c.id] = c.subdomain+'.'+c.domain; }); } catch(_){}
+        var html = '<table class="table"><thead><tr><th>時間</th><th>標題</th><th>內文</th><th>Campaign</th><th>結果</th></tr></thead><tbody>';
+        history.forEach(function(h){
+          var campLabel = h.campaignId ? (campMap[h.campaignId] || h.campaignId.slice(0,8)) : '全部';
+          var dt = new Date(h.sentAt).toLocaleString('zh-TW', {timeZone:'Asia/Taipei'});
+          var badge = h.failed === 0 ? 'badge-active' : (h.sent === 0 ? 'badge-disabled' : 'badge-pending');
+          var result = h.type === 'recall' ? '🔄 Recall' : '<span class="badge '+badge+'">'+h.sent+'/'+h.total+'</span>';
+          html += '<tr><td style="white-space:nowrap;font-size:12px">'+esc(dt)+'</td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis">'+esc(h.title||'-')+'</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">'+esc(h.body||'-')+'</td><td><span class="hint">'+esc(campLabel)+'</span></td><td>'+result+'</td></tr>';
+        });
+        html += '</tbody></table>';
+        document.getElementById('push-history').innerHTML = html;
+      } catch(err) { document.getElementById('push-history').innerHTML = '<span class="hint">載入失敗: '+esc(err.message)+'</span>'; }
     }
 
     document.addEventListener('click', (e) => {
