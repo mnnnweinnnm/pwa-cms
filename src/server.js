@@ -407,8 +407,8 @@ app.get('/admin', requireAuth, (req, res) => {
       try {
         var r = await api('GET', '/api/stats' + qs);
         var s = r.summary;
-        var types = ['page_view','install_click','install_complete','pwa_open','redirect','push_subscribe'];
-        var labels = ['👁 瀏覽','☝️ 點安裝','✅ 安裝完成','📱 PWA開啟','➡️ 跳轉','🔔 推播訂閱'];
+        var types = ['page_view','install_click','install_complete','pwa_open','redirect','push_subscribe','safe_page_view'];
+        var labels = ['👁 瀏覽','☝️ 點安裝','✅ 安裝完成','📱 PWA開啟','➡️ 跳轉','🔔 推播訂閱','🛡️ 安全頁'];
         document.getElementById('stats-summary').innerHTML = types.map(function(t,i) { return '<div style="text-align:center"><div style="font-size:24px;font-weight:700">'+(s.byType[t]||0)+'</div><div class="hint">'+labels[i]+'</div></div>'; }).join('');
         var days = Object.keys(s.byDay||{}).sort().reverse();
         if (days.length) {
