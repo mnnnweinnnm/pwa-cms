@@ -15,7 +15,7 @@ const { v4: uuidv4 } = require('uuid');
 const { buildDownloadPage, buildSafePage, buildManifest, buildServiceWorker } = require('../templates/download-page');
 const { deployPage, removePage, verifyDeploy } = require('../services/deploy');
 const audit = require('../services/audit-log');
-const { requireAdmin } = require('../lib/auth-store');
+const { requireAuth, requireAdmin } = require('../lib/auth-store');
 
 const DATA_FILE = path.join(__dirname, '../../data/campaigns.json');
 const DOMAINS_FILE = path.join(__dirname, '../../data/domains.json');
