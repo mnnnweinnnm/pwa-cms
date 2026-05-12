@@ -46,6 +46,32 @@ function appendEvent(event) {
   const day = dateKey();
   const fp = statsFilePath(day);
   const events = loadDay(day);
+
+  // pwa_open deduplication: one per device (fingerprint) per campaign per day
+  if (event.type === 'pwa_open' && event.fingerprint && event.campaignId) {
+    const exists = events.some(e =>
+      e.type === 'pwa_open' &&
+      e.campaignId === event.campaignId &&
+      e.fingerprint === event.fingerprint
+    );
+    if (exists) return; // already tracked today
+  }
+
+  // install_complete deduplication: one per device ever
+  if (event.type === 'install_complete' && event.fingerprint && event.campaignId) {
+    // Check all existing stat files for this device+campaign
+    const allFiles = fs.readdirSync(STATS_DIR).filter(f => f.endsWith('.json'));
+    for (const f of allFiles) {
+      const dayEvents = loadDay(f.replace('.json', ''));
+      const exists = dayEvents.some(e =>
+        e.type === 'install_complete' &&
+        e.campaignId === event.campaignId &&
+        e.fingerprint === event.fingerprint
+      );
+      if (exists) return; // already installed by this device
+    }
+  }
+
   events.push({
     ...event,
     timestamp: nowUTC(),
@@ -56,10 +82,26 @@ function appendEvent(event) {
 /**
  * Record a stats event
  * @param {string} type - page_view|install_click|install_complete|pwa_open|redirect|push_subscribe
- * @param {object} meta - { campaignId, pkgId, subdomain, domain, ua, ip, referer, lang, platform }
+ * @param {object} meta - { campaignId, pkgId, subdomain, domain, ua, ip, referer, lang, platform, fingerprint }
  */
 function recordEvent(type, meta = {}) {
   appendEvent({ type, ...meta });
+}
+
+/**
+ * Record a pwa_open event from SW (carries fingerprint + ts)
+ * @param {string} campaignId
+ * @param {string} fingerprint - device fingerprint hash
+ * @param {number} ts - client timestamp (ms)
+ */
+function recordPwaOpen(campaignId, fingerprint, ts) {
+  // ts is client-side timestamp; use it only for dateKey, store UTC now
+  if (ts) {
+    const d = new Date(ts).toISOString();
+    appendEvent({ type: 'pwa_open', campaignId, fingerprint, timestamp: nowUTC() });
+  } else {
+    appendEvent({ type: 'pwa_open', campaignId, fingerprint });
+  }
 }
 
 /**

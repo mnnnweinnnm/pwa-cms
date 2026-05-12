@@ -831,9 +831,27 @@ ${similarHtml}
   var SUBDOMAIN = '${escapeHtml(subdomain || '')}';
   var DOMAIN = '${escapeHtml(domain || '')}';
   var LANG_CODE = '${langCode}';
+  function deviceFingerprint() {
+    var parts = [
+      navigator.userAgent || '',
+      navigator.platform || '',
+      screen.width + 'x' + screen.height + 'x' + (screen.colorDepth || ''),
+      Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+      navigator.hardwareConcurrency || '',
+    ];
+    var hash = 0;
+    var str = parts.join('|');
+    for (var i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash = hash & hash;
+    }
+    return Math.abs(hash).toString(36);
+  }
+
   function trackEvent(evType) {
     try {
-      var body = { type: evType, campaignId: CAMP_ID, pkgId: PKG_ID, subdomain: SUBDOMAIN, domain: DOMAIN, lang: LANG_CODE, platform: navigator.platform };
+      var fp = deviceFingerprint();
+      var body = { type: evType, campaignId: CAMP_ID, pkgId: PKG_ID, subdomain: SUBDOMAIN, domain: DOMAIN, lang: LANG_CODE, platform: navigator.platform, fingerprint: fp, ts: Date.now() };
       // Use URLSearchParams (not Blob+JSON) for sendBeacon compatibility across all browsers.
       // fetch+keepalive as fallback for environments where sendBeacon is unavailable.
       if (navigator.sendBeacon) {
@@ -842,7 +860,7 @@ ${similarHtml}
         var sent = navigator.sendBeacon(STATS_URL, sp);
         console.log('[Stats] ' + evType + ' → ' + (sent ? '✅ sent' : '⚠️ declined'));
       } else {
-        fetch(STATS_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), keepalive:true }).catch(function(){});
+        fetch(STATS_URL, { method:'POST', body: new URLSearchParams(body), keepalive:true }).catch(function(){});
         console.log('[Stats] ' + evType + ' → ✅ fetch fallback sent');
       }
     } catch(e) { console.log('[Stats] ' + evType + ' → ❌ error: ' + e.message); }
@@ -1007,17 +1025,63 @@ function buildManifest({ pkg, targetUrl, subdomain, domain }) {
   };
 }
 
-function buildServiceWorker({ targetUrl }) {
+function buildServiceWorker({ targetUrl, campaignId, statsEndpoint }) {
   const cacheName = cacheNameForTarget(targetUrl);
   return `var CACHE_NAME = '${cacheName}';
+var CAMP_ID = '${campaignId}';
+var STATS_URL = '${statsEndpoint}';
 var urlsToCache = ['/', '/manifest.json', '/icon.png'];
+
+// Lightweight device fingerprint from available browser APIs
+function deviceFingerprint() {
+  var parts = [
+    navigator.userAgent || '',
+    navigator.platform || '',
+    screen.width + 'x' + screen.height + 'x' + (screen.colorDepth || ''),
+    Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+    navigator.hardwareConcurrency || '',
+  ];
+  var hash = 0;
+  var str = parts.join('|');
+  for (var i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function sendEvent(type) {
+  var body = new URLSearchParams({
+    type: type,
+    campaignId: CAMP_ID,
+    fingerprint: deviceFingerprint(),
+    ts: Date.now()
+  });
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon(STATS_URL + '/api/stats/event', body);
+  } else {
+    fetch(STATS_URL + '/api/stats/event', {
+      method: 'POST',
+      body: body,
+      keepalive: true
+    }).catch(function() {});
+  }
+}
+
+// pwa_open fires on first fetch when PWA is opened from home screen (after install)
+var pwaOpenTracked = false;
+self.addEventListener('fetch', function(e) {
+  e.respondWith(caches.match(e.request).then(function(r) {
+    if (!pwaOpenTracked) {
+      pwaOpenTracked = true;
+      sendEvent('pwa_open');
+    }
+    return r || fetch(e.request);
+  }));
+});
 
 self.addEventListener('install', function(e) {
   e.waitUntil(caches.open(CACHE_NAME).then(function(cache) { return cache.addAll(urlsToCache); }));
-});
-
-self.addEventListener('fetch', function(e) {
-  e.respondWith(caches.match(e.request).then(function(r) { return r || fetch(e.request); }));
 });
 
 self.addEventListener('push', function(event) {
@@ -1032,7 +1096,6 @@ self.addEventListener('push', function(event) {
 });
 
 self.addEventListener('notificationclick', function(event) {
-  event.notification.close();
   var url = event.notification.data && event.notification.data.url;
   if (url) event.waitUntil(clients.openWindow(url));
 });

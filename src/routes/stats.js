@@ -20,7 +20,7 @@ router.use((req, res, next) => {
 
 // PUBLIC — 下載頁埋的 JS 打回來
 router.post('/event', (req, res) => {
-  const { type, campaignId, pkgId, subdomain, domain, lang, platform } = req.body;
+  const { type, campaignId, pkgId, subdomain, domain, lang, platform, fingerprint, ts } = req.body;
   const VALID_TYPES = ['page_view', 'install_click', 'install_complete', 'pwa_open', 'redirect', 'push_subscribe'];
   if (!type || !VALID_TYPES.includes(type)) {
     return res.status(400).json({ error: 'Invalid event type' });
@@ -28,7 +28,7 @@ router.post('/event', (req, res) => {
   const ua = req.headers['user-agent'] || '';
   const ip = req.ip || req.connection?.remoteAddress || '';
   const referer = req.headers['referer'] || '';
-  recordEvent(type, { campaignId, pkgId, subdomain, domain, lang, platform, ua, ip, referer });
+  recordEvent(type, { campaignId, pkgId, subdomain, domain, lang, platform, ua, ip, referer, fingerprint, ts });
   res.header('Access-Control-Allow-Origin', '*');
   res.json({ ok: true });
 });
