@@ -5,6 +5,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const cron = require('node-cron');
+const pushService = require('./services/push-service');
 
 const packagesRouter = require('./routes/packages');
 const campaignsRouter = require('./routes/campaigns');
@@ -617,6 +619,19 @@ app.get('/admin', requireAuth, (req, res) => {
 </body>
 </html>`);
 });
+
+// Auto recall every hour at :05
+cron.schedule('5 * * * *', async () => {
+  console.log('[Recall Cron] Starting automatic recall check...');
+  try {
+    const result = await pushService.processRecalls();
+    if (result['24h_sent'] > 0 || result['48h_sent'] > 0 || result.failed > 0) {
+      console.log(`[Recall Cron] Done: 24h=${result['24h_sent']} 48h=${result['48h_sent']} failed=${result.failed}`);
+    }
+  } catch (err) {
+    console.error('[Recall Cron] Error:', err.message);
+  }
+}, { timezone: 'Asia/Taipei' });
 
 app.listen(PORT, () => {
   console.log(`🎯 PWA CMS running on port ${PORT}`);

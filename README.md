@@ -24,18 +24,31 @@ cd /var/www/pwa-cms && git pull origin main && npm install && systemctl restart 
 ## 架構
 
 ```
-┌──────────────────────────────────────────────────────┐
-│  admin.xmx99juego.online  →  VPS2 :3003 (CMS)        │
-│    /admin                   管理後台                  │
-│    /api/packages            PWA 包 CRUD              │
-│    /api/campaigns           連結建立 + 部署           │
-└──────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│  admin.pwaadminhub.xyz  →  VPS2 :3003 (CMS)                       │
+│    /admin                 管理後台                                 │
+│    /api/*                  管理 API                               │
+└──────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────┐
+│  stats.pwaadminhub.xyz  →  VPS2 :3003 (CMS)                       │
+│    /api/stats/event       公開統計埋點（前台打這裡，不暴露 admin） │
+│    /api/push/subscribe    公開推播訂閱                             │
+└──────────────────────────────────────────────────────────────────┘
                     rsync ↓
-┌──────────────────────────────────────────────────────┐
-│  *.xmx99juego.online           →  VPS2 :80            │
-│    /var/www/pwa-downloads/{subdomain}/                │
-└──────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│  *.xmx99juego.online           →  VPS2 :80 (Caddy wildcard)       │
+│    /var/www/pwa-downloads/{subdomain}/                            │
+└──────────────────────────────────────────────────────────────────┘
 ```
+
+## 環境變數
+
+| 變數 | 說明 |
+|------|------|
+| `PORT` | 監聽埠（預設 3003） |
+| `PWA_DOWNLOAD_BASE` | PWA 下載頁部署目錄，預設 `/var/www/pwa-downloads` |
+| `CMS_BASE_URL` | 前台統計/推播 URL，預設 `https://stats.pwaadminhub.xyz`（**前台只打這個，不暴露 admin domain**）|
 
 ## 新增域名流程
 
@@ -57,3 +70,9 @@ TL;DR:
 
 1. 在 Cloudflare 建立 zone + `*.download` CNAME
 2. 在後台「域名設定」頁新增域名（API: `POST /api/campaigns/domains`）
+
+## 前台 URL 分離原則
+
+**前台（STATS_URL / 推播訂閱）打 `stats.pwaadminhub.xyz`**
+後台管理打 `admin.pwaadminhub.xyz`
+兩個 domain 都 reverse_proxy 到同一個 CMS backend，避免前台原始碼暴露後台網址。
