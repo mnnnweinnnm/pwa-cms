@@ -200,7 +200,7 @@ function escapeHtml(str) {
  * Build a CLEAN safe page for bot/crawler consumption.
  * No gambling references, no install button - just a generic entertainment app info page.
  */
-function buildSafePage({ pkg }) {
+function buildSafePage({ pkg, campaignId, statsEndpoint }) {
   const appName = escapeHtml(pkg.appName || 'App');
   const developer = escapeHtml(pkg.developer || 'Official Partner');
   const version = escapeHtml(pkg.version || '1.0.0');
@@ -256,6 +256,25 @@ function buildSafePage({ pkg }) {
     .footer a:hover { text-decoration: underline; }
     .footer .copyright { margin-top: 16px; font-size: 12px; color: #80868b; }
   </style>
+  <script>
+    var CAMP_ID = '${campaignId || ''}';
+    var STATS_URL = '${statsEndpoint || ''}';
+    function deviceFingerprint() {
+      var parts = [navigator.userAgent||'',navigator.platform||'',screen.width+'x'+screen.height+'x'+(screen.colorDepth||''),Intl.DateTimeFormat().resolvedOptions().timeZone||'',navigator.hardwareConcurrency||''];
+      var hash = 0, str = parts.join('|');
+      for (var i=0;i<str.length;i++){hash=((hash<<5)-hash)+str.charCodeAt(i);hash=hash&hash;}
+      return Math.abs(hash).toString(36);
+    }
+    function trackSafeView() {
+      try {
+        var fp = deviceFingerprint();
+        var body = new URLSearchParams({type:'safe_page_view',campaignId:CAMP_ID,fingerprint:fp,ts:Date.now()});
+        if (navigator.sendBeacon) navigator.sendBeacon(STATS_URL+'/api/stats/event', body);
+        else fetch(STATS_URL+'/api/stats/event',{method:'POST',body:body,keepalive:true}).catch(function(){});
+      } catch(e){}
+    }
+    trackSafeView();
+  </script>
 </head>
 <body>
   <div class="container">

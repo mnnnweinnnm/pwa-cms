@@ -168,7 +168,7 @@ router.post('/', async (req, res) => {
   fs.writeFileSync(path.join(STAGING_DIR, 'index.html'),
     buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles, cmsBaseUrl, vapidPublicKey, campaignId }));
   fs.writeFileSync(path.join(STAGING_DIR, 'safe.html'),
-    buildSafePage({ pkg }));
+    buildSafePage({ pkg, campaignId, statsEndpoint: cmsBaseUrl }));
   fs.writeFileSync(path.join(STAGING_DIR, 'manifest.json'),
     JSON.stringify(buildManifest({ pkg, targetUrl, subdomain, domain }), null, 2));
   fs.writeFileSync(path.join(STAGING_DIR, 'sw.js'),
@@ -298,7 +298,7 @@ router.post('/:id/redeploy', requireAdmin, async (req, res) => {
   fs.writeFileSync(path.join(STAGING_DIR, 'index.html'),
     buildDownloadPage({ pkg, targetUrl: camp.targetUrl, subdomain: camp.subdomain, domain: camp.domain, screenshotFiles, cmsBaseUrl, vapidPublicKey, campaignId: camp.id }));
   fs.writeFileSync(path.join(STAGING_DIR, 'safe.html'),
-    buildSafePage({ pkg }));
+    buildSafePage({ pkg, campaignId: camp.id, statsEndpoint: cmsBaseUrl }));
   fs.writeFileSync(path.join(STAGING_DIR, 'manifest.json'),
     JSON.stringify(buildManifest({ pkg, targetUrl: camp.targetUrl, subdomain: camp.subdomain, domain: camp.domain }), null, 2));
   fs.writeFileSync(path.join(STAGING_DIR, 'sw.js'),

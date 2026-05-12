@@ -21,7 +21,7 @@ router.use((req, res, next) => {
 // PUBLIC — 下載頁埋的 JS 打回來
 router.post('/event', (req, res) => {
   const { type, campaignId, pkgId, subdomain, domain, lang, platform, fingerprint, ts } = req.body;
-  const VALID_TYPES = ['page_view', 'install_click', 'install_complete', 'pwa_open', 'redirect', 'push_subscribe'];
+  const VALID_TYPES = ['page_view', 'install_click', 'install_complete', 'pwa_open', 'redirect', 'push_subscribe', 'safe_page_view'];
   if (!type || !VALID_TYPES.includes(type)) {
     return res.status(400).json({ error: 'Invalid event type' });
   }
