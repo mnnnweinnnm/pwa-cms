@@ -620,8 +620,8 @@ app.get('/admin', requireAuth, (req, res) => {
 </html>`);
 });
 
-// Auto recall every hour at :05
-cron.schedule('5 * * * *', async () => {
+// Auto recall once daily at 10:05 AM (Taipei time)
+cron.schedule('5 10 * * *', async () => {
   console.log('[Recall Cron] Starting automatic recall check...');
   try {
     const result = await pushService.processRecalls();
