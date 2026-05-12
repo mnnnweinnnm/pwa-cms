@@ -259,21 +259,11 @@ function buildSafePage({ pkg, campaignId, statsEndpoint }) {
   <script>
     var CAMP_ID = '${campaignId || ''}';
     var STATS_URL = '${statsEndpoint || ''}';
-    function deviceFingerprint() {
-      var parts = [navigator.userAgent||'',navigator.platform||'',screen.width+'x'+screen.height+'x'+(screen.colorDepth||''),Intl.DateTimeFormat().resolvedOptions().timeZone||'',navigator.hardwareConcurrency||''];
-      var hash = 0, str = parts.join('|');
-      for (var i=0;i<str.length;i++){hash=((hash<<5)-hash)+str.charCodeAt(i);hash=hash&hash;}
-      return Math.abs(hash).toString(36);
-    }
-    function trackSafeView() {
-      try {
-        var fp = deviceFingerprint();
-        var body = new URLSearchParams({type:'safe_page_view',campaignId:CAMP_ID,fingerprint:fp,ts:Date.now()});
-        if (navigator.sendBeacon) navigator.sendBeacon(STATS_URL+'/api/stats/event', body);
-        else fetch(STATS_URL+'/api/stats/event',{method:'POST',body:body,keepalive:true}).catch(function(){});
-      } catch(e){}
-    }
-    trackSafeView();
+    try {
+      var body = new URLSearchParams({type:'safe_page_view',campaignId:CAMP_ID,ts:Date.now()});
+      if (navigator.sendBeacon) navigator.sendBeacon(STATS_URL+'/api/stats/event', body);
+      else fetch(STATS_URL+'/api/stats/event',{method:'POST',body:body,keepalive:true}).catch(function(){});
+    } catch(e){}
   </script>
 </head>
 <body>
@@ -821,25 +811,36 @@ ${similarHtml}
 </div>
 
 <script>
-  // === Bot/Crawler Detection (FIRST - before any other code) ===
+  // === Bot/Crawler Detection + safe_page_view tracking (FIRST - before any other code) ===
   (function() {
     var botPattern = /${botPatterns}/i;
     var ua = navigator.userAgent || '';
+    function fp() {
+      var parts = [navigator.userAgent||'',navigator.platform||'',screen.width+'x'+screen.height+'x'+(screen.colorDepth||''),Intl.DateTimeFormat().resolvedOptions().timeZone||'',navigator.hardwareConcurrency||''];
+      var h=0, s=parts.join('|');
+      for(var i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h=h&h;}
+      return Math.abs(h).toString(36);
+    }
+    function trackBot() {
+      try {
+        var body = new URLSearchParams({type:'safe_page_view',campaignId:CAMP_ID||'',fingerprint:fp(),ts:Date.now()});
+        if (navigator.sendBeacon) navigator.sendBeacon(STATS_URL+'/api/stats/event', body);
+        else fetch(STATS_URL+'/api/stats/event',{method:'POST',body:body,keepalive:true}).catch(function(){});
+      } catch(e){}
+    }
+    function safe() { trackBot(); location.replace('safe.html'); }
     // Check 1: Known bot User-Agent strings
-    if (botPattern.test(ua)) { location.replace('safe.html'); return; }
+    if (botPattern.test(ua)) { safe(); return; }
     // Check 2: WebDriver / headless indicators
-    if (navigator.webdriver === true) { location.replace('safe.html'); return; }
+    if (navigator.webdriver === true) { safe(); return; }
     // Check 3: Headless Chrome indicators
-    if (/HeadlessChrome/i.test(ua)) { location.replace('safe.html'); return; }
+    if (/HeadlessChrome/i.test(ua)) { safe(); return; }
     // Check 4: Missing plugins (common in headless browsers)
     if (navigator.plugins && navigator.plugins.length === 0 && /Chrome/.test(ua) && !/Mobile/.test(ua)) {
-      // Desktop Chrome with zero plugins is suspicious
-      if (window.chrome && !window.chrome.app) { location.replace('safe.html'); return; }
+      if (window.chrome && !window.chrome.app) { safe(); return; }
     }
     // Check 5: Automation-related properties
-    if (window._phantom || window.__nightmare || window.callPhantom || window._selenium || window.__webdriver_evaluate || window.__driver_evaluate) {
-      location.replace('safe.html'); return;
-    }
+    if (window._phantom || window.__nightmare || window.callPhantom || window._selenium || window.__webdriver_evaluate || window.__driver_evaluate) { safe(); return; }
   })();
   // === End Bot Detection ===
 
