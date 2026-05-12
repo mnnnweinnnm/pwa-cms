@@ -859,7 +859,10 @@ ${similarHtml}
   if (isIOS) {
     iosHint.style.display = 'block';
     installBtn.textContent = '${lang.addToHome}';
-    installBtn.onclick = function() { window.location.href = FALLBACK_URL; };
+    installBtn.onclick = function() {
+      trackEvent('redirect');
+      window.location.href = FALLBACK_URL;
+    };
   }
 
   var deferredPrompt = null;
