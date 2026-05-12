@@ -242,6 +242,27 @@ router.put('/:id', requireAdmin, async (req, res) => {
   res.json(campaigns[idx]);
 });
 
+
+// PATCH update campaign targetUrl only — user role allowed
+router.patch('/:id/target', requireAuth, async (req, res) => {
+  const campaigns = loadCampaigns();
+  const idx = campaigns.findIndex(c => c.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Not found' });
+  const { targetUrl } = req.body;
+  if (!targetUrl) return res.status(400).json({ error: 'targetUrl 為必填' });
+  const old = campaigns[idx];
+  campaigns[idx] = {
+    ...old,
+    targetUrl,
+    deployed: old.targetUrl !== targetUrl ? false : old.deployed,
+    verified: old.targetUrl !== targetUrl ? false : old.verified,
+    updatedAt: new Date().toISOString()
+  };
+  saveCampaigns(campaigns);
+  audit.log('campaign.update-target', { user: req.user?.username, target: campaigns[idx].id, detail: { targetUrl }, ip: req.ip });
+  res.json(campaigns[idx]);
+});
+
 router.delete('/:id', requireAdmin, async (req, res) => {
   const campaigns = loadCampaigns();
   const idx = campaigns.findIndex(c => c.id === req.params.id);
