@@ -7,14 +7,28 @@ const fs = require('fs');
 const path = require('path');
 
 const STATS_DIR = path.join(__dirname, '../../data/stats');
+const TZ_OFFSET = 8; // Taipei UTC+8
 
 function ensureDir() {
   fs.mkdirSync(STATS_DIR, { recursive: true });
 }
 
+/** Get current date key in Taipei time (YYYY-MM-DD) */
 function dateKey(d) {
-  const dt = d ? new Date(d) : new Date();
-  return dt.toISOString().slice(0, 10); // YYYY-MM-DD
+  if (d) {
+    // If given a UTC ISO string, treat it as UTC and convert to Taipei
+    const utcMs = new Date(d).getTime();
+    const taipeiMs = utcMs + TZ_OFFSET * 3600000;
+    return new Date(taipeiMs).toISOString().slice(0, 10);
+  }
+  // Current time in Taipei
+  const taipeiMs = Date.now() + TZ_OFFSET * 3600000;
+  return new Date(taipeiMs).toISOString().slice(0, 10);
+}
+
+/** Get current UTC ISO timestamp for storage */
+function nowUTC() {
+  return new Date().toISOString();
 }
 
 function statsFilePath(date) {
@@ -34,7 +48,7 @@ function appendEvent(event) {
   const events = loadDay(day);
   events.push({
     ...event,
-    timestamp: new Date().toISOString(),
+    timestamp: nowUTC(),
   });
   fs.writeFileSync(fp, JSON.stringify(events));
 }
@@ -91,8 +105,8 @@ function queryStats({ from, to, pkgId, campaignId, type } = {}) {
       summary.byCampaign[e.campaignId] = summary.byCampaign[e.campaignId] || {};
       summary.byCampaign[e.campaignId][e.type] = (summary.byCampaign[e.campaignId][e.type] || 0) + 1;
     }
-    // by day
-    const day = e.timestamp ? e.timestamp.slice(0, 10) : 'unknown';
+    // by day - use Taipei date for grouping
+    const day = e.timestamp ? dateKey(e.timestamp) : 'unknown';
     summary.byDay[day] = summary.byDay[day] || {};
     summary.byDay[day][e.type] = (summary.byDay[day][e.type] || 0) + 1;
   }
