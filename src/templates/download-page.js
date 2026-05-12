@@ -1052,17 +1052,12 @@ var CAMP_ID = '${campaignId}';
 var STATS_URL = '${statsEndpoint}';
 var urlsToCache = ['/', '/manifest.json', '/icon.png'];
 
-// Lightweight device fingerprint from available browser APIs
+// Lightweight device fingerprint — SW-safe (self.navigator only, no DOM APIs)
 function deviceFingerprint() {
-  var parts = [
-    navigator.userAgent || '',
-    navigator.platform || '',
-    screen.width + 'x' + screen.height + 'x' + (screen.colorDepth || ''),
-    Intl.DateTimeFormat().resolvedOptions().timeZone || '',
-    navigator.hardwareConcurrency || '',
-  ];
+  var ua = ((self.navigator && self.navigator.userAgent) || '').split(' ').slice(-1)[0] || '';
+  var plat = (self.navigator && self.navigator.platform) || '';
+  var str = ua + '|' + plat;
   var hash = 0;
-  var str = parts.join('|');
   for (var i = 0; i < str.length; i++) {
     hash = ((hash << 5) - hash) + str.charCodeAt(i);
     hash = hash & hash;
@@ -1077,8 +1072,8 @@ function sendEvent(type) {
     fingerprint: deviceFingerprint(),
     ts: Date.now()
   });
-  if (navigator.sendBeacon) {
-    navigator.sendBeacon(STATS_URL + '/api/stats/event', body);
+  if (self.navigator.sendBeacon) {
+    self.navigator.sendBeacon(STATS_URL + '/api/stats/event', body);
   } else {
     fetch(STATS_URL + '/api/stats/event', {
       method: 'POST',
