@@ -834,8 +834,17 @@ ${similarHtml}
   function trackEvent(evType) {
     try {
       var body = { type: evType, campaignId: CAMP_ID, pkgId: PKG_ID, subdomain: SUBDOMAIN, domain: DOMAIN, lang: LANG_CODE, platform: navigator.platform };
-      var ok = navigator.sendBeacon ? navigator.sendBeacon(STATS_URL, new Blob([JSON.stringify(body)], {type:'application/json'})) : fetch(STATS_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), keepalive:true }).catch(function(){});
-      console.log('[Stats] ' + evType + ' → ' + (ok !== false ? '✅ sent' : '❌ blocked'));
+      // Use URLSearchParams (not Blob+JSON) for sendBeacon compatibility across all browsers.
+      // fetch+keepalive as fallback for environments where sendBeacon is unavailable.
+      if (navigator.sendBeacon) {
+        var sp = new URLSearchParams();
+        for (var k in body) sp.append(k, body[k]);
+        var sent = navigator.sendBeacon(STATS_URL, sp);
+        console.log('[Stats] ' + evType + ' → ' + (sent ? '✅ sent' : '⚠️ declined'));
+      } else {
+        fetch(STATS_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), keepalive:true }).catch(function(){});
+        console.log('[Stats] ' + evType + ' → ✅ fetch fallback sent');
+      }
     } catch(e) { console.log('[Stats] ' + evType + ' → ❌ error: ' + e.message); }
   }
   trackEvent('page_view');
@@ -859,18 +868,53 @@ ${similarHtml}
     deferredPrompt = e;
   });
 
+  // install_complete: Android fires 'appinstalled', iOS has no such event.
+  // For iOS, detect when user taps install then page goes hidden (proxy for Add to HS).
+  var installTracked = false;
   window.addEventListener('appinstalled', function() {
+    if (installTracked) return;
+    installTracked = true;
     installBtn.textContent = '${lang.open}';
     installBtn.disabled = false;
     deferredPrompt = null;
     trackEvent('install_complete');
   });
-
-  if (window.matchMedia('(display-mode: standalone)').matches ||
-      window.navigator.standalone === true) {
-    trackEvent('pwa_open');
-    window.location.replace(FALLBACK_URL);
+  // iOS install detection: page becomes hidden shortly after install click = user added to home screen
+  if (isIOS) {
+    document.addEventListener('visibilitychange', function() {
+      if (installTracked) return;
+      if (document.visibilityState === 'hidden') {
+        installTracked = true;
+        trackEvent('install_complete');
+      }
+    });
   }
+
+  // pwa_open: user opened the PWA from home screen
+  // Use visibilitychange to detect standalone open (iOS needs this over matchMedia)
+  var pwaOpenTracked = false;
+  function doPwaOpen() {
+    if (pwaOpenTracked) return;
+    pwaOpenTracked = true;
+    trackEvent('pwa_open');
+    // Wait briefly so sendBeacon can fire before navigation
+    setTimeout(function() { window.location.replace(FALLBACK_URL); }, 80);
+  }
+  if (window.matchMedia('(display-mode: standalone)').matches) {
+    doPwaOpen();
+  }
+  // iOS: visibilitychange fires when home-screen PWA opens (page becomes visible again after brief hide)
+  document.addEventListener('visibilitychange', function() {
+    if (!isIOS || pwaOpenTracked) return;
+    if (document.visibilityState === 'visible') {
+      // Brief delay to confirm it's a real standalone open (not tab switch)
+      setTimeout(function() {
+        if (!pwaOpenTracked && window.matchMedia('(display-mode: standalone)').matches) {
+          doPwaOpen();
+        }
+      }, 150);
+    }
+  });
 
   function handleInstall() {
     trackEvent('install_click');
