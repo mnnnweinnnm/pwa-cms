@@ -204,7 +204,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // PUT update campaign
-router.put('/:id', requireAdmin, async (req, res) => {
+router.put('/:id', requireAuth, async (req, res) => {
   const campaigns = loadCampaigns();
   const idx = campaigns.findIndex(c => c.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Not found' });
@@ -287,7 +287,7 @@ router.post('/:id/verify', async (req, res) => {
 module.exports = router;
 
 // POST redeploy campaign (regenerate download page with latest template)
-router.post('/:id/redeploy', requireAdmin, async (req, res) => {
+router.post('/:id/redeploy', requireAuth, async (req, res) => {
   const campaigns = loadCampaigns();
   const idx = campaigns.findIndex(c => c.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Not found' });

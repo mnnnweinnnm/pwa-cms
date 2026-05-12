@@ -537,25 +537,17 @@ app.get('/admin', requireAuth, (req, res) => {
           dopts += '<option value="' + esc(allDomains[j]) + '"' + dsel + '>' + esc(allDomains[j]) + statusTag + '</option>';
         }
         document.getElementById('camp-edit-domain').innerHTML = dopts || '<option value="">-- 無域名 --</option>';
-        if (!isAdmin) { var adminFields = document.getElementById('camp-edit-admin-fields'); if (adminFields) adminFields.style.display = 'none'; }
         document.getElementById('camp-edit-form').onsubmit = async function(e) {
           e.preventDefault();
           var id = document.getElementById('camp-edit-id').value;
           var targetUrl = document.getElementById('camp-edit-target').value;
-          var data, method, endpoint;
-          if (isAdmin) {
-            data = { subdomain: document.getElementById('camp-edit-sub').value, domain: document.getElementById('camp-edit-domain').value, targetUrl: targetUrl, pkgId: document.getElementById('camp-edit-pkg').value };
-            method = 'PUT'; endpoint = '/api/campaigns/' + id;
-          } else {
-            data = { targetUrl: targetUrl };
-            method = 'PATCH'; endpoint = '/api/campaigns/' + id + '/target';
-          }
+          var data = { subdomain: document.getElementById('camp-edit-sub').value, domain: document.getElementById('camp-edit-domain').value, targetUrl: targetUrl, pkgId: document.getElementById('camp-edit-pkg').value };
           try {
             var submitBtn = e.target.querySelector('button[type=submit]');
             var oldText = submitBtn ? submitBtn.textContent : '';
             if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '儲存並重新部署中...'; }
-            var c = await api(method, endpoint, data);
-            if (isAdmin) c = await api('POST', '/api/campaigns/' + id + '/redeploy');
+            var c = await api('PUT', '/api/campaigns/' + id, data);
+            c = await api('POST', '/api/campaigns/' + id + '/redeploy');
             closeCampModal();
             var updUrl = c.downloadUrl || (c.subdomain && c.domain ? 'https://'+c.subdomain+'.'+c.domain : null) || '';
             msg('camp-msg', '✅ 推廣連結已更新並重新部署：' + updUrl + '（驗證：' + (c.verified ? '✅' : '❌') + '）');
@@ -611,13 +603,11 @@ app.get('/admin', requireAuth, (req, res) => {
       </div>
       <form id="camp-edit-form">
         <input type="hidden" name="id" id="camp-edit-id">
-        <div id="camp-edit-admin-fields">
-          <div style="display:flex;gap:12px;margin-bottom:12px">
-            <div style="flex:1"><label style="color:#a6adc8;display:block;margin-bottom:4px">子網域</label><input type="text" name="subdomain" id="camp-edit-sub" required style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></div>
-            <div style="flex:1"><label style="color:#a6adc8;display:block;margin-bottom:4px">域名</label><select name="domain" id="camp-edit-domain" required style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></select></div>
-          </div>
-          <div style="margin-bottom:12px"><label style="color:#a6adc8;display:block;margin-bottom:4px">PWA 包</label><select name="pkgId" id="camp-edit-pkg" required style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></select></div>
+        <div style="display:flex;gap:12px;margin-bottom:12px">
+          <div style="flex:1"><label style="color:#a6adc8;display:block;margin-bottom:4px">子網域</label><input type="text" name="subdomain" id="camp-edit-sub" required style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></div>
+          <div style="flex:1"><label style="color:#a6adc8;display:block;margin-bottom:4px">域名</label><select name="domain" id="camp-edit-domain" required style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></select></div>
         </div>
+        <div style="margin-bottom:12px"><label style="color:#a6adc8;display:block;margin-bottom:4px">PWA 包</label><select name="pkgId" id="camp-edit-pkg" required style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></select></div>
         <div style="margin-bottom:16px"><label style="color:#a6adc8;display:block;margin-bottom:4px">目標網址</label><input type="url" name="targetUrl" id="camp-edit-target" required style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></div>
         <div style="display:flex;gap:12px;justify-content:flex-end">
           <button type="button" data-action="close-camp-modal" style="padding:8px 16px;background:#45475a;border:none;border-radius:6px;color:#cdd6f4;cursor:pointer">取消</button>
