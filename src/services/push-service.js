@@ -266,6 +266,38 @@ async function processRecalls() {
   acquireLock();
   try { saveSubscriptions(subs); } finally { releaseLock(); }
 
+  // Log recall sends to history
+  if (results['24h_sent'] > 0) {
+    appendHistory({
+      id: require('crypto').randomUUID(),
+      type: 'recall_24h',
+      campaignId: null,
+      title: RECALL_MESSAGES['24h']['es'].title,
+      body: RECALL_MESSAGES['24h']['es'].body,
+      url: '',
+      icon: null,
+      sentAt: new Date().toISOString(),
+      sent: results['24h_sent'],
+      failed: results.failed,
+      total: subs.filter(s => s.active).length,
+    });
+  }
+  if (results['48h_sent'] > 0) {
+    appendHistory({
+      id: require('crypto').randomUUID(),
+      type: 'recall_48h',
+      campaignId: null,
+      title: RECALL_MESSAGES['48h']['es'].title,
+      body: RECALL_MESSAGES['48h']['es'].body,
+      url: '',
+      icon: null,
+      sentAt: new Date().toISOString(),
+      sent: results['48h_sent'],
+      failed: results.failed,
+      total: subs.filter(s => s.active).length,
+    });
+  }
+
   return results;
 }
 
