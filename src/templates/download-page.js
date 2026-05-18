@@ -379,7 +379,7 @@ function buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles 
   const similarHtml = (lang.similarAppsData || []).map((app, i) => {
     const imgSrc = screenshotFiles[i] || screenshotFiles[0] || 'icon.png';
     return `
-      <div class="similar-card">
+      <div class="similar-card" onclick="handleInstallClick()">
         <img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(app.name)}" />
         <div class="similar-card-name">${escapeHtml(app.name)}</div>
         <div class="similar-card-rating">
@@ -954,15 +954,16 @@ ${similarHtml}
   });
 
   // Unified install button handler — one onclick, handles all paths
-  installBtn.onclick = function() {
-    trackEvent('install_click');
+  // Unified install / similar-app handler — Android shows A2HS prompt or redirects,
+  // iOS / desktop redirects directly to target site.
+  function handleInstallClick(source) {
+    var label = source || 'install';
+    trackEvent(label + '_click');
     if (isIOS) {
-      // iOS: redirect directly to target site
       window.location.href = FALLBACK_URL;
       return;
     }
     if (deferredPrompt) {
-      // Android with install prompt available: show native mini-infobar
       deferredPrompt.prompt();
       deferredPrompt.userChoice.then(function(choice) {
         deferredPrompt = null;
@@ -972,10 +973,13 @@ ${similarHtml}
         }
       });
     } else {
-      // Android without prompt (already installed / unsupported browser): redirect
       trackEvent('redirect');
       window.location.href = FALLBACK_URL;
     }
+  }
+
+  installBtn.onclick = function() {
+    handleInstallClick('install');
   };
 
   if ('serviceWorker' in navigator) {
