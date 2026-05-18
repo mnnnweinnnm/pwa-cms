@@ -1036,7 +1036,7 @@ ${similarHtml}
   }
 
   // ── Popup Modal ──
-  var POPUP_IMG = ${jsString(pkg.popupImageUrl || '')};
+  var POPUP_IMG = ${jsString(pkg.popupImageUrl ? String(pkg.popupImageUrl).split('/').filter(Boolean).pop() : '')};
   var POPUP_ENABLED = ${jsString(String(!!(pkg.popupEnabled && pkg.popupImageUrl)))};
   var POPUP_KEY = 'popup_dismissed_' + CAMP_ID;
 
@@ -1070,7 +1070,7 @@ ${similarHtml}
 <div id="popup-overlay" class="popup-overlay" role="dialog" aria-modal="true">
   <div class="popup-box">
     <button class="popup-close" onclick="dismissPopup(false)" aria-label="Cerrar">&times;</button>
-    <img src="${escapeHtml(pkg.popupImageUrl || '')}" alt="Promoci\u00f3n" id="popup-img" />
+    <img src="${escapeHtml(pkg.popupImageUrl ? String(pkg.popupImageUrl).split('/').filter(Boolean).pop() : '')}" alt="Promoci\u00f3n" id="popup-img" />
     <div class="popup-footer">
       <button class="popup-btn popup-btn-later" onclick="dismissPopup(false)">M\u00e1s tarde</button>
       <button class="popup-btn popup-btn-close" onclick="dismissPopup(true)">Cerrar</button>
