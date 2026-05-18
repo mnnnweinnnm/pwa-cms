@@ -84,7 +84,7 @@ router.post('/', requireAdmin, upload.fields([{ name: 'icon', maxCount: 1 }, { n
     iconPath,
     screenshotPaths,
     popupImageUrl: popupImagePath ? `/uploads/popups/${path.basename(popupImagePath)}` : (req.body.popupImageUrl || null),
-    popupEnabled: req.body.popupEnabled === 'true' || req.body.popupEnabled === true,
+    popupEnabled: (function(v){ if(Array.isArray(v)) v=v[v.length-1]; return v==='true'||v===true; })(req.body.popupEnabled),
     createdAt: new Date().toISOString(),
   };
 
@@ -112,7 +112,7 @@ router.put('/:id', requireAdmin, upload.fields([{ name: 'icon', maxCount: 1 }, {
     rating: req.body.rating ?? existing.rating,
     brand: req.body.brand ?? existing.brand ?? 'xmx99',
     popupImageUrl: req.files['popupImage']?.[0]?.path ? `/uploads/popups/${path.basename(req.files['popupImage'][0].path)}` : (req.body.popupImageUrl !== undefined ? req.body.popupImageUrl : (existing.popupImageUrl || null)),
-    popupEnabled: req.body.popupEnabled === 'true' || req.body.popupEnabled === true,
+    popupEnabled: (function(v){ if(Array.isArray(v)) v=v[v.length-1]; return v==='true'||v===true; })(req.body.popupEnabled),
   };
 
   if (req.files['icon']?.[0]) {
