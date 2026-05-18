@@ -572,6 +572,18 @@ function buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles 
     .footer-info a { display: block; color: var(--primary-green); margin-bottom: 8px; font-weight: 500; }
     .footer-flag { padding: 16px 24px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); border-top: 1px solid var(--border); }
 
+    /* ── Popup Modal ── */
+    .popup-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 9999; display: none; align-items: center; justify-content: center; padding: 16px; }
+    .popup-overlay.show { display: flex; }
+    .popup-box { position: relative; width: min(400px, 90vw); max-height: 90vh; overflow-y: auto; border-radius: 16px; background: #fff; box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
+    .popup-box img { width: 100%; height: auto; display: block; border-radius: 16px 16px 0 0; object-fit: cover; max-height: 360px; }
+    .popup-close { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; background: rgba(0,0,0,0.5); border: none; border-radius: 50%; color: #fff; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; z-index: 1; }
+    .popup-close:hover { background: rgba(0,0,0,0.7); }
+    .popup-footer { display: flex; gap: 8px; padding: 12px 16px 16px; }
+    .popup-btn { flex: 1; padding: 10px; border: none; border-radius: 100px; font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; }
+    .popup-btn-later { background: #f1f3f4; color: #5f6368; }
+    .popup-btn-close { background: var(--primary-green); color: #fff; }
+
     /* ── Sticky install ── */
     .sticky-cta { position: sticky; bottom: 16px; margin: 0 24px; z-index: 50; }
     .no-scroll::-webkit-scrollbar { display: none; }
@@ -1022,7 +1034,50 @@ ${similarHtml}
     for (var i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
     return outputArray;
   }
+
+  // ── Popup Modal ──
+  var POPUP_IMG = ${jsString(pkg.popupImageUrl || '')};
+  var POPUP_ENABLED = ${jsString(String(!!(pkg.popupEnabled && pkg.popupImageUrl)))};
+  var POPUP_KEY = 'popup_dismissed_' + CAMP_ID;
+
+  function showPopup() {
+    var overlay = document.getElementById('popup-overlay');
+    if (!overlay) return;
+    overlay.classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function dismissPopup(remember) {
+    var overlay = document.getElementById('popup-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('show');
+    document.body.style.overflow = '';
+    if (remember) {
+      try { localStorage.setItem(POPUP_KEY, '1'); } catch(e){}
+    }
+  }
+
+  if (POPUP_ENABLED && POPUP_IMG) {
+    try {
+      if (!localStorage.getItem(POPUP_KEY)) {
+        setTimeout(showPopup, 800);
+      }
+    } catch(e) {}
+  }
 </script>
+
+<!-- Popup Modal -->
+<div id="popup-overlay" class="popup-overlay" role="dialog" aria-modal="true">
+  <div class="popup-box">
+    <button class="popup-close" onclick="dismissPopup(false)" aria-label="Cerrar">&times;</button>
+    <img src="${escapeHtml(pkg.popupImageUrl || '')}" alt="Promoci\u00f3n" id="popup-img" />
+    <div class="popup-footer">
+      <button class="popup-btn popup-btn-later" onclick="dismissPopup(false)">M\u00e1s tarde</button>
+      <button class="popup-btn popup-btn-close" onclick="dismissPopup(true)">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>`;
 }

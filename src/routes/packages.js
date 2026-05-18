@@ -19,11 +19,13 @@ const { requireAdmin } = require('../lib/auth-store');
 const UPLOAD_BASE = path.join(__dirname, '../../uploads');
 const ICON_DIR = path.join(UPLOAD_BASE, 'icons');
 const SCREENSHOT_DIR = path.join(UPLOAD_BASE, 'screenshots');
+const POPUP_DIR = path.join(UPLOAD_BASE, 'popups');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     if (file.fieldname === 'icon') cb(null, ICON_DIR);
     else if (file.fieldname === 'screenshots') cb(null, SCREENSHOT_DIR);
+    else if (file.fieldname === 'popupImage') cb(null, POPUP_DIR);
     else cb(null, UPLOAD_BASE);
   },
   filename: (req, file, cb) => {
@@ -61,12 +63,13 @@ router.get('/:id', (req, res) => {
 });
 
 // POST create
-router.post('/', requireAdmin, upload.fields([{ name: 'icon', maxCount: 1 }, { name: 'screenshots', maxCount: 10 }]), (req, res) => {
+router.post('/', requireAdmin, upload.fields([{ name: 'icon', maxCount: 1 }, { name: 'screenshots', maxCount: 10 }, { name: 'popupImage', maxCount: 1 }]), (req, res) => {
   const pkgs = loadPackages();
   const { appName, lang, developer, description, version, downloadCount, rating } = req.body;
 
   const iconPath = req.files['icon']?.[0]?.path || null;
   const screenshotPaths = (req.files['screenshots'] || []).map(f => f.path);
+  const popupImagePath = req.files['popupImage']?.[0]?.path || null;
 
   const pkg = {
     id: uuidv4(),
@@ -80,7 +83,9 @@ router.post('/', requireAdmin, upload.fields([{ name: 'icon', maxCount: 1 }, { n
     releaseDate: new Date().toLocaleDateString(),
     iconPath,
     screenshotPaths,
-createdAt: new Date().toISOString(),
+    popupImageUrl: popupImagePath ? `/uploads/popups/${path.basename(popupImagePath)}` : (req.body.popupImageUrl || null),
+    popupEnabled: req.body.popupEnabled === 'true' || req.body.popupEnabled === true,
+    createdAt: new Date().toISOString(),
   };
 
   pkgs.push(pkg);
@@ -90,7 +95,7 @@ createdAt: new Date().toISOString(),
 });
 
 // PUT update
-router.put('/:id', requireAdmin, upload.fields([{ name: 'icon', maxCount: 1 }, { name: 'screenshots', maxCount: 10 }]), (req, res) => {
+router.put('/:id', requireAdmin, upload.fields([{ name: 'icon', maxCount: 1 }, { name: 'screenshots', maxCount: 10 }, { name: 'popupImage', maxCount: 1 }]), (req, res) => {
   const pkgs = loadPackages();
   const idx = pkgs.findIndex(p => p.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Not found' });
@@ -106,6 +111,8 @@ router.put('/:id', requireAdmin, upload.fields([{ name: 'icon', maxCount: 1 }, {
     downloadCount: req.body.downloadCount ?? existing.downloadCount,
     rating: req.body.rating ?? existing.rating,
     brand: req.body.brand ?? existing.brand ?? 'xmx99',
+    popupImageUrl: req.files['popupImage']?.[0]?.path ? `/uploads/popups/${path.basename(req.files['popupImage'][0].path)}` : (req.body.popupImageUrl !== undefined ? req.body.popupImageUrl : (existing.popupImageUrl || null)),
+    popupEnabled: req.body.popupEnabled === 'true' || req.body.popupEnabled === true,
   };
 
   if (req.files['icon']?.[0]) {
@@ -158,5 +165,17 @@ router.delete('/:id/icon', requireAdmin, (req, res) => {
   pkgs[idx].iconPath = null;
   savePackages(pkgs);
   audit.log('package.icon.delete', { user: req.user?.username, target: req.params.id, ip: req.ip });
+  res.json({ success: true });
+});
+
+// DELETE popup image
+router.delete('/:id/popup', requireAdmin, (req, res) => {
+  const pkgs = loadPackages();
+  const idx = pkgs.findIndex(p => p.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Not found' });
+  pkgs[idx].popupImageUrl = null;
+  pkgs[idx].popupEnabled = false;
+  savePackages(pkgs);
+  audit.log('package.popup.delete', { user: req.user?.username, target: req.params.id, ip: req.ip });
   res.json({ success: true });
 });

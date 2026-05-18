@@ -137,6 +137,8 @@ app.get('/admin', requireAuth, (req, res) => {
         </div><div class="form-group"><label>App 說明（About this app）</label><textarea name="description" placeholder="Describe the app..."></textarea></div>
         <div class="form-group"><label>App Icon（PNG/JPG，建議 512x512）</label><input type="file" name="icon" accept="image/png,image/jpeg" /></div>
         <div class="form-group"><label>截圖（可多選，建議 3-5 張，建議尺寸 1080x1920px 或 640x360px）</label><input type="file" name="screenshots" accept="image/*" multiple /></div>
+        <div class="form-group"><label>彈窗圖片（400×360px，PNG/JPG）</label><input type="file" name="popupImage" accept="image/png,image/jpeg" /></div>
+        <div class="form-group" style="display:flex;align-items:center;gap:8px"><input type="checkbox" name="popupEnabled" id="pkg-popup-enabled-create" value="true" style="width:auto" /><label for="pkg-popup-enabled-create" style="margin:0;font-weight:400">啟用彈窗</label></div>
         <button type="submit" class="btn btn-primary">建立 PWA 包</button></form><div id="pkg-msg"></div>
       </div>
       <div class="card"><div class="card-title">PWA 包列表</div><table class="table" id="pkg-table"><thead><tr><th>名稱</th><th>語系</th><th>版本</th><th>素材</th><th>操作</th></tr></thead><tbody></tbody></table></div>
@@ -487,6 +489,18 @@ app.get('/admin', requireAuth, (req, res) => {
           ssHtml += '<div style="position:relative;display:inline-block;margin:4px"><img src="' + esc(shots[i]) + '" style="height:120px;border-radius:6px;object-fit:cover"><button type="button" data-action="del-pkg-ss" data-index="' + i + '" style="position:absolute;top:2px;right:2px;background:#f38ba8;border:none;border-radius:50%;width:22px;height:22px;color:#1e1e2e;cursor:pointer;font-size:14px;line-height:20px;padding:0">&times;</button></div>';
         }
         ssBox.innerHTML = ssHtml || '<span style="color:#6c7086">無截圖</span>';
+        // Popup preview + checkbox
+        var popupBox = document.getElementById('pkg-edit-popup-preview');
+        if (pkg.popupImageUrl) {
+          popupBox.innerHTML = '<div style="display:flex;align-items:center;gap:12px"><img src="' + esc(pkg.popupImageUrl) + '" style="height:80px;border-radius:8px;object-fit:cover"><button type="button" id="del-pkg-popup-btn" style="padding:4px 10px;background:#f38ba8;border:none;border-radius:4px;color:#1e1e2e;cursor:pointer;font-size:12px">刪除</button></div>';
+          document.getElementById('del-pkg-popup-btn').onclick = async function() {
+            if (!confirm('確認刪除彈窗圖？')) return;
+            try { await api('DELETE', '/api/packages/' + _pkgEditId + '/popup'); openPkgEditModal(_pkgEditId); } catch(e) { alert('刪除失敗'); }
+          };
+        } else {
+          popupBox.innerHTML = '<span style="color:#6c7086">無彈窗圖</span>';
+        }
+        document.getElementById('pkg-edit-popup-enabled').checked = !!pkg.popupEnabled;
         document.getElementById('pkg-edit-form').onsubmit = async function(e) {
           e.preventDefault();
           var id = document.getElementById('pkg-edit-id').value;
@@ -586,6 +600,8 @@ app.get('/admin', requireAuth, (req, res) => {
           <div style="flex:1"><label style="color:#a6adc8;display:block;margin-bottom:4px">評分</label><input type="text" name="rating" id="pkg-edit-rating" style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></div>
         </div>
         <div style="margin-bottom:12px"><label style="color:#a6adc8;display:block;margin-bottom:4px">截圖</label><div id="pkg-edit-ss-preview" style="margin-bottom:8px;max-height:200px;overflow-y:auto"></div><label style="color:#6c7086;font-size:12px">新增截圖（可多選）</label><input type="file" name="screenshots" accept="image/*" multiple style="color:#cdd6f4;font-size:12px"></div>
+        <div style="margin-bottom:12px"><label style="color:#a6adc8;display:block;margin-bottom:4px">彈窗圖片（400×360px）</label><div id="pkg-edit-popup-preview" style="margin-bottom:8px"></div><input type="file" name="popupImage" accept="image/png,image/jpeg" style="color:#cdd6f4;font-size:12px"></div>
+        <div style="margin-bottom:16px;display:flex;align-items:center;gap:8px"><input type="hidden" name="popupEnabled" value="false"><input type="checkbox" name="popupEnabled" id="pkg-edit-popup-enabled" value="true" style="width:auto" /><label for="pkg-edit-popup-enabled" style="color:#a6adc8;margin:0;font-weight:400">啟用彈窗</label></div>
         <div style="margin-bottom:16px"><label style="color:#a6adc8;display:block;margin-bottom:4px">說明</label><textarea name="description" id="pkg-edit-desc" rows="2" style="width:100%;padding:8px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4"></textarea></div>
         <div style="display:flex;gap:12px;justify-content:flex-end">
           <button type="button" data-action="close-pkg-modal" style="padding:8px 16px;background:#45475a;border:none;border-radius:6px;color:#cdd6f4;cursor:pointer">取消</button>
