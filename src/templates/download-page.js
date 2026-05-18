@@ -650,7 +650,7 @@ function buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles 
 
 <!-- Install CTA -->
 <div class="cta-wrap">
-  <button class="btn-install" id="installBtn" onclick="handleInstall()">${lang.install}</button>
+  <button class="btn-install" id="installBtn">${lang.install}</button>
   <div class="install-secondary-info">
     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
@@ -909,10 +909,6 @@ ${similarHtml}
   if (isIOS) {
     iosHint.style.display = 'block';
     installBtn.textContent = '${lang.addToHome}';
-    installBtn.onclick = function() {
-      trackEvent('redirect');
-      window.location.href = FALLBACK_URL;
-    };
   }
 
   var deferredPrompt = null;
@@ -922,7 +918,6 @@ ${similarHtml}
   });
 
   // install_complete: Android fires 'appinstalled', iOS has no such event.
-  // For iOS, detect when user taps install then page goes hidden (proxy for Add to HS).
   var installTracked = false;
   window.addEventListener('appinstalled', function() {
     if (installTracked) return;
@@ -932,35 +927,22 @@ ${similarHtml}
     deferredPrompt = null;
     trackEvent('install_complete');
   });
-  // iOS install detection: page becomes hidden shortly after install click = user added to home screen
-  if (isIOS) {
-    document.addEventListener('visibilitychange', function() {
-      if (installTracked) return;
-      if (document.visibilityState === 'hidden') {
-        installTracked = true;
-        trackEvent('install_complete');
-      }
-    });
-  }
 
   // pwa_open: user opened the PWA from home screen
-  // Use visibilitychange to detect standalone open (iOS needs this over matchMedia)
   var pwaOpenTracked = false;
   function doPwaOpen() {
     if (pwaOpenTracked) return;
     pwaOpenTracked = true;
     trackEvent('pwa_open');
-    // Wait briefly so sendBeacon can fire before navigation
     setTimeout(function() { window.location.replace(FALLBACK_URL); }, 80);
   }
   if (window.matchMedia('(display-mode: standalone)').matches) {
     doPwaOpen();
   }
-  // iOS: visibilitychange fires when home-screen PWA opens (page becomes visible again after brief hide)
+  // iOS: visibilitychange fires when home-screen PWA opens
   document.addEventListener('visibilitychange', function() {
     if (!isIOS || pwaOpenTracked) return;
     if (document.visibilityState === 'visible') {
-      // Brief delay to confirm it's a real standalone open (not tab switch)
       setTimeout(function() {
         if (!pwaOpenTracked && window.matchMedia('(display-mode: standalone)').matches) {
           doPwaOpen();
@@ -969,10 +951,16 @@ ${similarHtml}
     }
   });
 
-  function handleInstall() {
+  // Unified install button handler — one onclick, handles all paths
+  installBtn.onclick = function() {
     trackEvent('install_click');
-    if (isIOS) return;
+    if (isIOS) {
+      // iOS: redirect directly to target site
+      window.location.href = FALLBACK_URL;
+      return;
+    }
     if (deferredPrompt) {
+      // Android with install prompt available: show native mini-infobar
       deferredPrompt.prompt();
       deferredPrompt.userChoice.then(function(choice) {
         deferredPrompt = null;
@@ -982,10 +970,11 @@ ${similarHtml}
         }
       });
     } else {
+      // Android without prompt (already installed / unsupported browser): redirect
       trackEvent('redirect');
       window.location.href = FALLBACK_URL;
     }
-  }
+  };
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js')
