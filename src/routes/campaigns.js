@@ -161,6 +161,15 @@ router.post('/', async (req, res) => {
     });
   }
 
+  // Copy popup image (popupImageUrl format: '/uploads/popups/filename.png')
+  if (pkg.popupImageUrl && pkg.popupImageUrl.startsWith('/uploads/')) {
+    const popupFname = path.basename(pkg.popupImageUrl);
+    const popupSrc = path.join(__dirname, '../../uploads/popups', popupFname);
+    if (fs.existsSync(popupSrc)) {
+      fs.copyFileSync(popupSrc, path.join(STAGING_DIR, popupFname));
+    }
+  }
+
   // Generate index.html, safe.html, manifest.json, sw.js
   const cmsBaseUrl = process.env.CMS_BASE_URL || 'https://admin.pwaadminhub.xyz';
   const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || '';
@@ -312,6 +321,15 @@ router.post('/:id/redeploy', requireAuth, async (req, res) => {
         screenshotFiles.push(fname);
       }
     });
+  }
+
+  // Copy popup image
+  if (pkg.popupImageUrl && pkg.popupImageUrl.startsWith('/uploads/')) {
+    const popupFname = path.basename(pkg.popupImageUrl);
+    const popupSrc = path.join(__dirname, '../../uploads/popups', popupFname);
+    if (fs.existsSync(popupSrc)) {
+      fs.copyFileSync(popupSrc, path.join(STAGING_DIR, popupFname));
+    }
   }
 
   const cmsBaseUrl = process.env.CMS_BASE_URL || 'https://admin.pwaadminhub.xyz';
