@@ -573,7 +573,7 @@ function buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles 
     .footer-flag { padding: 16px 24px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); border-top: 1px solid var(--border); }
 
     /* ── Popup Modal ── */
-    .popup-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 9999; display: none; align-items: center; justify-content: center; padding: 16px; }
+    .popup-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 9998; display: none; align-items: center; justify-content: center; padding: 16px; }
     .popup-overlay.show { display: flex; }
     .popup-box { position: relative; width: min(400px, 90vw); max-height: 90vh; overflow-y: auto; border-radius: 16px; background: #fff; box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
     .popup-box img { width: 100%; height: auto; display: block; border-radius: 16px 16px 0 0; object-fit: cover; max-height: 360px; }
