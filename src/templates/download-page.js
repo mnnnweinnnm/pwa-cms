@@ -324,8 +324,10 @@ function jsString(value) {
   return JSON.stringify(String(value || ''));
 }
 
-function cacheNameForTarget(url) {
-  return 'pwa-' + crypto.createHash('sha1').update(normalizeTargetUrl(url)).digest('hex').slice(0, 10);
+function cacheNameForTarget(url, subdomain) {
+  // Include subdomain so re-deploying a subdomain always bumps the cache name,
+  // forcing all existing SW users to re-cache with the new page content.
+  return 'pwa-' + crypto.createHash('sha1').update(normalizeTargetUrl(url) + '|' + subdomain).digest('hex').slice(0, 10);
 }
 
 function buildDownloadPage({ pkg, targetUrl, subdomain, domain, screenshotFiles = [], cmsBaseUrl, vapidPublicKey, campaignId }) {
@@ -1089,8 +1091,8 @@ function buildManifest({ pkg, targetUrl, subdomain, domain }) {
   };
 }
 
-function buildServiceWorker({ targetUrl, campaignId, statsEndpoint }) {
-  const cacheName = cacheNameForTarget(targetUrl);
+function buildServiceWorker({ targetUrl, campaignId, statsEndpoint, subdomain }) {
+  const cacheName = cacheNameForTarget(targetUrl, subdomain);
   return `var CACHE_NAME = '${cacheName}';
 var CAMP_ID = '${campaignId}';
 var STATS_URL = '${statsEndpoint}';

@@ -181,7 +181,7 @@ router.post('/', async (req, res) => {
   fs.writeFileSync(path.join(STAGING_DIR, 'manifest.json'),
     JSON.stringify(buildManifest({ pkg, targetUrl, subdomain, domain }), null, 2));
   fs.writeFileSync(path.join(STAGING_DIR, 'sw.js'),
-    buildServiceWorker({ targetUrl, campaignId, statsEndpoint: cmsBaseUrl }));
+    buildServiceWorker({ targetUrl, campaignId, statsEndpoint: cmsBaseUrl, subdomain }));
 
   let deployed = false;
   let verified = false;
@@ -341,7 +341,7 @@ router.post('/:id/redeploy', requireAuth, async (req, res) => {
   fs.writeFileSync(path.join(STAGING_DIR, 'manifest.json'),
     JSON.stringify(buildManifest({ pkg, targetUrl: camp.targetUrl, subdomain: camp.subdomain, domain: camp.domain }), null, 2));
   fs.writeFileSync(path.join(STAGING_DIR, 'sw.js'),
-    buildServiceWorker({ targetUrl: camp.targetUrl, campaignId: camp.id, statsEndpoint: cmsBaseUrl }));
+    buildServiceWorker({ targetUrl: camp.targetUrl, campaignId: camp.id, statsEndpoint: cmsBaseUrl, subdomain: camp.subdomain }));
 
   let deployed = false;
   let verified = false;
